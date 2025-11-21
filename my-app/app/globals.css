@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ------------------------------ */
+/* HIDE SCROLLBAR */
+/* ------------------------------ */
+
+/* Webkit browser (Chrome, Edge, Safari) */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+}
+
+/* Firefox */
+html,
+body {
+  -ms-overflow-style: none;   /* IE & Edge lama */
+  scrollbar-width: none;      /* Firefox */
+}
+
+/* Class opsional jika mau dipakai di elemen tertentu */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+
+/* ------------------------------ */
+/* ANIMASI POPUP KEREN (ELASTIC ZOOM) */
+/* ------------------------------ */
+
+@keyframes elasticZoom {
+  0% {
+    opacity: 0;
+    transform: scale(0.5); /* Mulai dari kecil banget (50%) */
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.05); /* Melewatin batas dikit (biar efek membal) */
+  }
+  100% {
+    transform: scale(1); /* Balik ke ukuran normal */
+  }
+}
+
+.animate-elastic {
+  /* Durasi 0.4s biar gerakan membalnya kelihatan */
+  animation: elasticZoom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Tambahan: Animasi buat backdrop hitamnya biar smooth */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade {
+  animation: fadeIn 0.3s ease-out forwards;
+}
