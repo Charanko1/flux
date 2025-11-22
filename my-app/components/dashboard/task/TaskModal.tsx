@@ -2,17 +2,16 @@
 
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import { motion } from "framer-motion";
 
-export default function TaskModal({ task, onSave, onClose, onDelete }) {
-  const [formData, setFormData] = useState(
-    task || {
-      title: "",
-      description: "",
-      priority: "Medium", // Default sesuai gambar
-      category: "Work", // Default sesuai gambar
-      date: "",
-    }
-  );
+export default function TaskModal({ task, onSave, onClose, layoutId }) {
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    priority: "Medium",
+    category: "Work",
+    date: "",
+  });
 
   useEffect(() => {
     if (task) {
@@ -21,8 +20,8 @@ export default function TaskModal({ task, onSave, onClose, onDelete }) {
       setFormData({
         title: "",
         description: "",
-        priority: "Medium", // Default untuk task baru
-        category: "Work", // Default untuk task baru
+        priority: "Medium",
+        category: "Work",
         date: "",
       });
     }
@@ -38,30 +37,53 @@ export default function TaskModal({ task, onSave, onClose, onDelete }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave({ ...formData, id: task ? task.id : crypto.randomUUID() });
+    onSave(formData);
   };
 
   const inputStyle =
-    "w-full rounded-lg bg-white px-3 py-2 text-gray-900 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-orange-400 focus:border-orange-400";
+    "w-full rounded-lg bg-white px-3 py-2 text-gray-900 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400 transition-all";
   const labelStyle = "block text-sm font-medium text-gray-800 mb-1";
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-lg p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      
+      {/* BACKDROP */}
+      <motion.div 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }} 
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+      />
+
+      {/* MODAL CARD */}
+      <motion.div 
+        layoutId={layoutId} // Magic Motion ID
+        initial={!layoutId ? { opacity: 0, scale: 0.9 } : undefined}
+        animate={!layoutId ? { opacity: 1, scale: 1 } : undefined}
+        exit={!layoutId ? { opacity: 0, scale: 0.9 } : undefined}
+        transition={{ 
+          type: "spring", 
+          stiffness: 350, 
+          damping: 25 
+        }} 
+        className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl relative z-10 overflow-hidden"
+      >
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-bold text-gray-900 tracking-tight">
             {task ? "Edit Task" : "Add New Task"}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
           >
-            <X size={22} />
+            <X size={24} />
           </button>
         </div>
 
-        {/* Form */}
+        {/* Form Content */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Title */}
           <div>
@@ -74,8 +96,9 @@ export default function TaskModal({ task, onSave, onClose, onDelete }) {
               required
               value={formData.title}
               onChange={handleChange}
-              placeholder="Enter task title..."
+              placeholder="What needs to be done?"
               className={inputStyle}
+              // UBAHAN: autoFocus dihapus biar keyboard gak loncat di HP
             />
           </div>
 
@@ -86,9 +109,9 @@ export default function TaskModal({ task, onSave, onClose, onDelete }) {
               name="description"
               value={formData.description}
               onChange={handleChange}
-              placeholder="Add task description (optional)..."
-              className={`${inputStyle} min-h-[100px]`}
-              rows={4}
+              placeholder="Add details (optional)..."
+              className={`${inputStyle} min-h-[100px] resize-none`}
+              rows={3}
             />
           </div>
 
@@ -102,7 +125,6 @@ export default function TaskModal({ task, onSave, onClose, onDelete }) {
                 onChange={handleChange}
                 className={inputStyle}
               >
-                {/* <option value="" disabled>Select priority</option> */}
                 <option value="Low">Low</option>
                 <option value="Medium">Medium</option>
                 <option value="High">High</option>
@@ -117,7 +139,6 @@ export default function TaskModal({ task, onSave, onClose, onDelete }) {
                 onChange={handleChange}
                 className={inputStyle}
               >
-                {/* <option value="" disabled>Select category</option> */}
                 <option value="Work">Work</option>
                 <option value="Personal">Personal</option>
                 <option value="Shopping">Shopping</option>
@@ -145,33 +166,23 @@ export default function TaskModal({ task, onSave, onClose, onDelete }) {
           </div>
 
           {/* Buttons */}
-          <div className="flex justify-end items-center gap-3 pt-4">
+          <div className="flex justify-end items-center gap-3 pt-4 border-t border-gray-100 mt-6">
             <button
               type="button"
               onClick={onClose}
-              className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 transition"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-[#FBBF24] hover:bg-yellow-400 text-black font-medium py-2 px-4 rounded-lg transition"
+              className="px-4 py-2 text-sm font-medium text-white bg-[#FBBF24] hover:bg-yellow-500 rounded-lg shadow-sm hover:shadow transition-all transform active:scale-95"
             >
               {task ? "Save Changes" : "Create Task"}
             </button>
           </div>
-
-          {task && (
-            <button
-              type="button"
-              onClick={() => onDelete(task.id)}
-              className="w-full mt-2 py-2 text-red-600 hover:text-red-700 text-sm"
-            >
-              Delete Task
-            </button>
-          )}
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }

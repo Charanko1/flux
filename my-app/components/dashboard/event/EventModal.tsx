@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import { motion } from "framer-motion"; // Import Motion
 
-export default function EventModal({ event, onSave, onClose, onDelete }) {
+export default function EventModal({ event, onSave, onClose, onDelete, layoutId }) {
   const [formData, setFormData] = useState(
     event || {
       title: "",
@@ -40,28 +41,52 @@ export default function EventModal({ event, onSave, onClose, onDelete }) {
     }));
   };
 
+  // Logic unik punya abang (Tags dipisah koma)
   const handleTagChange = (e) => {
+    // Simpan sebagai string di state lokal biar enak diedit di input
+    // Nanti pas submit baru di-split kalau perlu, atau biarkan logic parent yang handle
+    // Tapi karena di props onSave abang kirim object utuh, kita sesuaikan di sini:
     setFormData((prev) => ({
       ...prev,
-      tags: e.target.value.split(",").map((tag) => tag.trim())
+      tags: e.target.value // Simpan string dulu agar input text aman
     }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave({ ...formData, id: event ? event.id : crypto.randomUUID() });
+    // Pas save, konversi tags string ke array (kalau backend butuh array)
+    // Atau kirim string kalau logic parent abang handle string.
+    // Di sini saya asumsikan parent handle array seperti kode sebelumnya:
+    const submittedData = {
+        ...formData,
+        tags: Array.isArray(formData.tags) ? formData.tags : formData.tags.split(",").map(t => t.trim()),
+        id: event ? event.id : crypto.randomUUID()
+    };
+    onSave(submittedData);
   };
 
   return (
-    // UBAH 1: Tambah 'p-4' di wrapper luar supaya modal gak nempel pinggir layar HP
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       
-      {/* UBAH 2: 
-          - 'w-full max-w-lg': Lebar full di HP, tapi dibatasi max-w-lg di desktop
-          - 'p-4 sm:p-6': Padding dalam lebih tipis di HP (mungil), lebar di desktop
-          - 'max-h-[90vh] overflow-y-auto': Supaya bisa discroll kalau layar HP pendek
-      */}
-      <div className="bg-white rounded-xl w-full max-w-lg p-4 sm:p-6 shadow-xl max-h-[90vh] overflow-y-auto hide-scrollbar">
+      {/* BACKDROP (Fade In) */}
+      <motion.div 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }} 
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+      />
+
+      {/* MODAL CARD (MORPHING) */}
+      {/* Kita pake style punya abang: rounded-xl, max-h-[90vh], dll */}
+      <motion.div 
+        layoutId={layoutId} // Kunci animasi magic motion
+        initial={!layoutId ? { opacity: 0, scale: 0.9 } : undefined}
+        animate={!layoutId ? { opacity: 1, scale: 1 } : undefined}
+        exit={!layoutId ? { opacity: 0, scale: 0.9 } : undefined}
+        transition={{ type: "spring", stiffness: 350, damping: 25 }}
+        className="bg-white rounded-xl w-full max-w-lg p-4 sm:p-6 shadow-xl max-h-[90vh] overflow-y-auto hide-scrollbar relative z-10"
+      >
         
         {/* Header */}
         <div className="flex justify-between items-center mb-4 sm:mb-6">
@@ -74,7 +99,6 @@ export default function EventModal({ event, onSave, onClose, onDelete }) {
         </div>
 
         {/* Form */}
-        {/* UBAH 3: space-y-3 di HP biar lebih compact, space-y-4 di desktop */}
         <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
 
           {/* Title */}
@@ -88,6 +112,7 @@ export default function EventModal({ event, onSave, onClose, onDelete }) {
               onChange={handleChange}
               placeholder="Enter event title"
               className="w-full rounded-lg bg-[#F5F6FA] px-3 py-2 text-sm text-gray-900 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-900"
+              // AutoFocus dimatikan biar animasi di HP smooth
             />
           </div>
 
@@ -161,9 +186,9 @@ export default function EventModal({ event, onSave, onClose, onDelete }) {
             <input
               type="text"
               name="tags"
-              placeholder="upcoming, Meeting, Work"
-              value={formData.tags}
+              value={Array.isArray(formData.tags) ? formData.tags.join(", ") : formData.tags}
               onChange={handleTagChange}
+              placeholder="e.g. Work, Meeting, Important"
               className="w-full rounded-lg bg-[#F5F6FA] px-3 py-2 text-sm text-gray-900 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-900"
             />
           </div>
@@ -172,7 +197,7 @@ export default function EventModal({ event, onSave, onClose, onDelete }) {
           <div className="flex items-center gap-3 pt-2 sm:pt-4">
             <button
               type="submit"
-              className="flex-1 bg-[#0B122A] hover:bg-[#030712] text-white py-2 sm:py-2.5 rounded-lg transition text-sm sm:text-base font-medium"
+              className="flex-1 bg-[#0B122A] hover:bg-[#030712] text-white py-2 sm:py-2.5 rounded-lg transition text-sm sm:text-base font-medium shadow-sm active:scale-95"
             >
               {event ? "Save Changes" : "Add Event"}
             </button>
@@ -190,13 +215,13 @@ export default function EventModal({ event, onSave, onClose, onDelete }) {
             <button
               type="button"
               onClick={() => onDelete(event.id)}
-              className="w-full mt-1 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition"
+              className="w-full mt-1 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition font-medium"
             >
               Delete Event
             </button>
           )}
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }
