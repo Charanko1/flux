@@ -1,8 +1,9 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { FiX } from "react-icons/fi"; 
+import { motion } from "framer-motion"; // Import Motion
 
-export default function NoteModal({ isOpen, onClose, onSave }) {
+export default function NoteModal({ isOpen, onClose, onSave, layoutId }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [color, setColor] = useState("#FACC15");
@@ -33,33 +34,50 @@ export default function NoteModal({ isOpen, onClose, onSave }) {
     };
 
     onSave(newNote); 
-    onClose();       
   };
 
-  if (!isOpen) return null;
+  // Jika layoutId ada, kita biarkan framer-motion yang handle visibility (lewat AnimatePresence)
+  // Jadi if (!isOpen) return null; boleh dihapus atau disesuaikan jika pakai AnimatePresence di parent
+  if (!isOpen && !layoutId) return null;
 
   return (
-    // 1. BACKDROP: Tambah 'animate-fade' biar background hitamnya smooth
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       
-      {/* 2. KOTAK MODAL: Ganti 'animate-in...' jadi 'animate-elastic' biar membal */}
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-elastic">
+      {/* BACKDROP: Fade In */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+      />
+      
+      {/* KOTAK MODAL: Magic Motion Morphing */}
+      <motion.div 
+        layoutId={layoutId} // ID yang sama dengan tombol di parent
+        initial={!layoutId ? { opacity: 0, scale: 0.9 } : undefined}
+        animate={!layoutId ? { opacity: 1, scale: 1 } : undefined}
+        exit={!layoutId ? { opacity: 0, scale: 0.9 } : undefined}
+        transition={{ type: "spring", stiffness: 350, damping: 25 }}
+        className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden relative z-10 flex flex-col"
+      >
         
         {/* Header Modal */}
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
           <h2 className="text-xl font-semibold text-gray-800">Create New Note</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <FiX size={24} />
           </button>
         </div>
 
         {/* Body Modal */}
-        <div className="p-6">
+        <div className="p-6 flex-1">
           
           {/* Title Input */}
           <label className="block text-sm font-medium text-gray-500 mb-2">Note Title *</label>
           <input
-            autoFocus
+            // autoFocus dihapus biar keyboard gak pop-up ngerusak animasi
             placeholder="Enter note title"
             className="w-full p-3 border border-gray-200 rounded-lg outline-none bg-gray-50 text-gray-800 focus:ring-2 focus:ring-amber-400 focus:bg-white transition-all"
             value={title}
@@ -107,7 +125,7 @@ export default function NoteModal({ isOpen, onClose, onSave }) {
           </button>
         </div>
 
-      </div>
+      </motion.div>
     </div>
   );
 }

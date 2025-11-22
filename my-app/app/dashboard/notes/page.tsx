@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { FiTrash2, FiCheck, FiSearch } from "react-icons/fi";
+import { motion, AnimatePresence } from "framer-motion"; // Import Framer Motion
 import NoteModal from "@/components/dashboard/notes/NoteModal";
 import NoteDetailModal from "@/components/dashboard/notes/NoteDetailModal";
 
@@ -12,6 +13,10 @@ export default function NotesPage() {
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState(null);
   const [isDetailModalOpen, setDetailModalOpen] = useState(false);
+  
+  // State ID Animasi
+  const [createLayoutId, setCreateLayoutId] = useState(null); 
+  const [detailLayoutId, setDetailLayoutId] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -42,15 +47,13 @@ export default function NotesPage() {
     setNotes(updatedNotes);
     localStorage.setItem("notes", JSON.stringify(updatedNotes));
     triggerNotification();
+    closeCreateModal();
   };
 
-  // --- LOGIC UPDATE NOTE ---
   const handleUpdateNote = (updatedNote) => {
     const newNotes = notes.map((n) => (n.id === updatedNote.id ? updatedNote : n));
     setNotes(newNotes);
     localStorage.setItem("notes", JSON.stringify(newNotes));
-    
-    // Update note yang lagi dibuka biar langsung berubah tampilannya
     setSelectedNote(updatedNote); 
   };
 
@@ -80,9 +83,26 @@ export default function NotesPage() {
     }
   };
 
+  // FUNGSI BUKA MODAL DETAIL (Dengan Animasi)
   const openDetail = (note) => {
+    setDetailLayoutId(`note-card-${note.id}`); // Set ID unik kartu
     setSelectedNote(note);
     setDetailModalOpen(true);
+  };
+
+  const closeDetail = () => {
+    setDetailModalOpen(false);
+    setTimeout(() => setDetailLayoutId(null), 300);
+  };
+
+  const openCreateModal = () => {
+    setCreateLayoutId("btn-add-note");
+    setCreateModalOpen(true);
+  };
+
+  const closeCreateModal = () => {
+    setCreateModalOpen(false);
+    setTimeout(() => setCreateLayoutId(null), 300);
   };
 
   const getTextColor = (bgColor) => {
@@ -121,18 +141,22 @@ export default function NotesPage() {
             />
           </div>
 
-          <button
-            onClick={() => setCreateModalOpen(true)}
-            className="px-4 py-2 bg-amber-300 hover:bg-amber-400 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-transform active:scale-95 whitespace-nowrap"
+          {/* TOMBOL ADD NOTE */}
+          <motion.button
+            layoutId="btn-add-note"
+            onClick={openCreateModal}
+            className="px-4 py-2 bg-amber-300 hover:bg-amber-400 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors active:scale-95 whitespace-nowrap"
+            style={{ opacity: isCreateModalOpen ? 0 : 1 }}
           >
             <span className="text-lg font-semibold">+</span> <span className="hidden sm:inline">Add Note</span>
-          </button>
+          </motion.button>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="px-8 pb-8 w-full max-w-7xl mx-auto">
         
+        {/* Notification */}
         <div className={`transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${showNotification ? 'max-h-40 mb-6' : 'max-h-0 mb-0'}`}>
           <div className={`w-full bg-amber-100 border border-amber-200 rounded-xl p-4 flex items-start gap-3 shadow-sm transform transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 -translate-y-4 scale-95'}`}>
             <div className="mt-0.5 text-amber-600 bg-white/50 p-1 rounded-full">
@@ -165,32 +189,36 @@ export default function NotesPage() {
           </div>
         ) : (
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {filteredNotes.map((note) => (
-              <div 
+              // WRAPPER MOTION DIV UNTUK KARTU CATATAN
+              <motion.div 
                 key={note.id} 
+                layoutId={`note-card-${note.id}`} // ID unik buat morphing ke modal
                 onClick={() => openDetail(note)}
-                className="group cursor-pointer transition-transform hover:scale-[1.02]"
+                className="group cursor-pointer"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ y: -4 }} // Efek hover naik dikit
               >
                 <div
                   className={`rounded-xl p-3 shadow-sm hover:shadow-md border relative h-32 flex flex-col
-                              transition-all ${getTextColor(note.color)}`}
+                              transition-colors ${getTextColor(note.color)}`}
                   style={{
                     backgroundColor: note.color,
                     borderColor: note.color === "#F5F5F5" ? "#E0E0E0" : "transparent",
                   }}
                 >
                   {/* Judul */}
-                  <h2 className={`font-bold text-sm mb-1 tracking-tight line-clamp-1 ${getTextColor(note.color)}`}>
+                  <motion.h2 layoutId={`note-title-${note.id}`} className={`font-bold text-sm mb-1 tracking-tight line-clamp-1 ${getTextColor(note.color)}`}>
                     {note.title}
-                  </h2>
+                  </motion.h2>
                   
-                  {/* Konten: flex-1 DIHAPUS, ditambah overflow-hidden */}
+                  {/* Konten */}
                   <p className={`text-xs whitespace-pre-line leading-snug line-clamp-3 break-all overflow-hidden ${getTextColor(note.color)} opacity-85`}>
                     {note.content}
                   </p>
                   
-                  {/* Spacer Baru: Buat dorong tanggal ke bawah */}
                   <div className="flex-1"></div>
 
                   {/* Tanggal */}
@@ -210,27 +238,36 @@ export default function NotesPage() {
                     <FiTrash2 size={14} />
                   </button>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Modals */}
-      <NoteModal 
-        isOpen={isCreateModalOpen} 
-        onClose={() => setCreateModalOpen(false)} 
-        onSave={handleSaveNote} 
-      />
+      {/* CREATE MODAL (ANIMASI) */}
+      <AnimatePresence>
+        {isCreateModalOpen && (
+          <NoteModal 
+            isOpen={isCreateModalOpen} 
+            onClose={closeCreateModal} 
+            onSave={handleSaveNote}
+            layoutId={createLayoutId} 
+          />
+        )}
+      </AnimatePresence>
       
-      {/* Modal Detail + Edit */}
-      <NoteDetailModal 
-        isOpen={isDetailModalOpen}
-        note={selectedNote}
-        onClose={() => setDetailModalOpen(false)}
-        onDelete={handleDelete}
-        onUpdate={handleUpdateNote} 
-      />
+      {/* DETAIL MODAL (ANIMASI) */}
+      <AnimatePresence>
+        {isDetailModalOpen && selectedNote && (
+          <NoteDetailModal 
+            note={selectedNote}
+            onClose={closeDetail}
+            onDelete={handleDelete}
+            onUpdate={handleUpdateNote}
+            layoutId={detailLayoutId} // ID dari kartu yang diklik
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
