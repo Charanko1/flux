@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import DashboardContent from '@/components/dashboard/finance/Dashboard';
 import AddTransactionPage from '@/components/dashboard/finance/AddTransaction';
 import TransactionHistoryPage from '@/components/dashboard/finance/TransactionHistory';
+
 
 const initialTransactionsData = [];
 
@@ -15,6 +16,15 @@ export default function FinancePage() {
     setTransactions([newTransaction, ...transactions]);
     setCurrentPage('dashboard');
   };
+
+  // Di dalam function FinancePage() ...
+
+// Tambahin useEffect ini:
+useEffect(() => {
+  // Setiap kali 'transactions' berubah, simpan ke LocalStorage
+  // Key "transactions" ini yang dibaca sama Dashboard tadi
+  localStorage.setItem("transactions", JSON.stringify(transactions));
+}, [transactions]);
 
   const renderPage = () => {
     switch (currentPage) {
