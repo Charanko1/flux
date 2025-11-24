@@ -1,68 +1,77 @@
-// app/api/auth/login/route.ts
+// /app/api/auth/login/route.ts
+
 import { NextResponse } from 'next/server';
 import connectDB from "@/lib/mongodb";
-import User from "@/models/User";
-import bcrypt from "bcryptjs";
+// Import IUser dan User Model
+import User, { IUser } from "@/models/User"; 
 import jwt from "jsonwebtoken";
 
 // Definisikan interface untuk payload request
 interface LoginRequest {
     email: string;
     password: string;
-    rememberMe?: boolean; // Tambahkan properti opsional rememberMe
+    rememberMe?: boolean;
 }
 
+// Definisikan JWT_SECRET di luar try/catch
+const JWT_SECRET = process.env.JWT_SECRET;
+
 export async function POST(req: Request) {
+    // 1. Validasi Environment Variable
+    if (!JWT_SECRET) {
+        console.error("❌ ERROR: JWT_SECRET environment variable is not defined.");
+        return NextResponse.json({ message: "Server configuration error." }, { status: 500 });
+    }
+
     try {
         await connectDB();
         
-        // Menggunakan destructuring untuk mengambil semua data yang dibutuhkan
         const { email, password, rememberMe }: LoginRequest = await req.json();
 
-        // 1. Validasi Input Dasar
+        // 2. Validasi Input Dasar
         if (!email || !password) {
             return NextResponse.json({ message: "Email and password are required" }, { status: 400 });
         }
 
-        // 2. Cari Pengguna
-        const user = await User.findOne({ email }).select('+password'); // Pastikan 'password' diambil
+        // 3. Cari Pengguna (Casting ke IUser agar Typescript mengenali matchPassword)
+        // .select('+password') penting agar field password yang disembunyikan diambil.
+        const user = await User.findOne({ email }).select('+password') as IUser | null; 
         
         if (!user) {
-            return NextResponse.json({ message: "Invalid credentials" }, { status: 401 }); // Gunakan 401 untuk User/Password tidak valid
+            // Gunakan pesan error umum untuk keamanan
+            return NextResponse.json({ message: "Invalid credentials." }, { status: 401 }); 
         }
 
-        // 3. Verifikasi Password
-        // Pastikan 'user.password' ada, karena .select('+password') digunakan.
-        const isMatch = await bcrypt.compare(password, user.password); 
+        // 4. Verifikasi Password menggunakan metode di Model User
+        // Ini lebih aman dan bersih daripada menggunakan bcrypt.compare langsung
+        const isMatch = await user.matchPassword(password);
         
         if (!isMatch) {
-            return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
+            return NextResponse.json({ message: "Invalid credentials." }, { status: 401 });
         }
 
-        // 4. Hitung Waktu Kedaluwarsa
-        const oneDay = 60 * 60 * 24; // 24 jam dalam detik
-        const sevenDays = oneDay * 7; // 7 hari dalam detik
+        // 5. Hitung Waktu Kedaluwarsa
+        const oneDay = 60 * 60 * 24; 
+        const maxAge = rememberMe ? oneDay * 7 : oneDay; // Cookie Max Age (in seconds)
+        const jwtExpiresIn = rememberMe ? "7d" : "1d"; // JWT Expires In (for payload)
 
-        // Atur maxAge cookie: 7 hari jika 'Remember Me' dicentang, 1 hari jika tidak
-        const maxAge = rememberMe ? sevenDays : oneDay;
-        const jwtExpiresIn = rememberMe ? "7d" : "1d";
-
-        // 5. Buat Token JWT
+        // 6. Buat Token JWT
         const token = jwt.sign(
             { 
                 id: user._id, 
                 email: user.email,
                 name: user.name,
             }, 
-            process.env.JWT_SECRET!, // Pastikan environment variable ini terdefinisi
+            JWT_SECRET, 
             { expiresIn: jwtExpiresIn }
         );
 
-        // 6. Siapkan Response JSON
+        // 7. Siapkan Response & Set Cookie Session
+        
+        // Buat response dengan data user
         const response = NextResponse.json(
             { 
                 message: "Login Successful",
-                token: token, // Tetap kirim token agar client (localStorage) bisa menyimpannya
                 user: {
                     id: user._id,
                     name: user.name,
@@ -72,13 +81,13 @@ export async function POST(req: Request) {
             { status: 200 }
         );
 
-        // 7. Set Cookie Session (Secure & HttpOnly)
+        // Set Cookie Session (HttpOnly adalah kunci keamanan)
         response.cookies.set('session', token, {
-            httpOnly: true, // Tidak dapat diakses oleh JavaScript client side
-            secure: process.env.NODE_ENV === 'production', // Hanya kirim lewat HTTPS di production
-            maxAge: maxAge, // Menggunakan maxAge yang telah dihitung (1 hari atau 7 hari)
+            httpOnly: true, 
+            secure: process.env.NODE_ENV === 'production', 
+            maxAge: maxAge, 
             path: '/',
-            sameSite: 'lax', // Proteksi CSRF
+            sameSite: 'lax',
         });
 
         return response;
@@ -86,7 +95,7 @@ export async function POST(req: Request) {
     } catch (error) {
         // Logging error yang lebih baik
         console.error("[LOGIN_ERROR]:", error); 
-        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during login process.";
-        return NextResponse.json({ message: "Internal Server Error", error: errorMessage }, { status: 500 });
+        // Mengembalikan pesan error umum ke client
+        return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
     }
 }
