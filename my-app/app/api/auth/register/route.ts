@@ -38,7 +38,7 @@ export async function POST(req: Request) {
         const user = await User.create({ 
             name: username, // Mapping username (dari frontend) ke name (di database)
             email, 
-            password: hashedPassword 
+            password: password
         });
 
         // 6. Respon Sukses

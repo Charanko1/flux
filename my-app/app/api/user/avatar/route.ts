@@ -1,95 +1,129 @@
-// app/api/user/avatar/route.ts
+// /app/api/user/avatar/route.ts
+
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { IncomingForm } from "formidable";
+// Import Stream untuk membantu parsing Request
+import { Readable } from 'stream'; 
 
-// Note: App Router Request is a Web Request. We still use formidable by casting to any when parsing.
-// This is a pragmatic approach used often for Next.js App Router file uploads.
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+// --- 🛑 Next.js App Router tidak menggunakan 'export const config' ini ---
+// const config = { api: { bodyParser: false, }, }; 
 
 const uploadDir = path.join(process.cwd(), "public", "uploads");
 
-// ensure upload dir exists
+// Pastikan direktori uploads ada (Dijalankan saat server build/start)
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// wrapper untuk formidable parse
-function parseForm(req: Request): Promise<{ fields: any; files: any }> {
+// Helper: Mengubah Web Request Body menjadi Node Stream
+function bufferToStream(buffer: Buffer) {
+  const stream = new Readable();
+  stream.push(buffer);
+  stream.push(null); // Menandakan akhir stream
+  return stream;
+}
+
+// Wrapper untuk formidable parse
+async function parseForm(req: Request): Promise<{ fields: any; files: any }> {
+  // Ambil body sebagai buffer
+  const buffer = Buffer.from(await req.arrayBuffer()); 
+  const stream = bufferToStream(buffer);
+
   return new Promise((resolve, reject) => {
-    const form = new IncomingForm({ multiples: false, keepExtensions: true, uploadDir });
-    // @ts-ignore - formidable expects a Node IncomingMessage; Next's Request must be cast
-    form.parse(req as any, (err, fields, files) => {
+    // Setting formidable
+    const form = new IncomingForm({ 
+      multiples: false, 
+      keepExtensions: true, 
+      uploadDir 
+    });
+
+    // Parsing stream
+    // @ts-ignore - Karena formidable expects Node's IncomingMessage, kita menggunakan stream
+    form.parse(stream as any, (err, fields, files) => { 
       if (err) return reject(err);
       resolve({ fields, files });
     });
   });
 }
 
+
 export async function POST(req: Request) {
   try {
-    // Optional: ambil token untuk verifikasi (sesuaikan jika perlu)
-    // const token = req.headers.get("authorization")?.replace("Bearer ", "");
-    // TODO: verify token/session & get userId jika mau update DB di server
+    // --- AUTENTIKASI PLACEHOLDER (Wajib di endpoint user) ---
+    // Di sini Anda perlu memverifikasi JWT dan mendapatkan userId
+    /*
+    const token = req.headers.get("authorization")?.replace("Bearer ", "");
+    const userId = verifyTokenAndGetUserId(token); // Anda harus implementasi fungsi ini
+    if (!userId) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    */
+    // --- AKHIR AUTENTIKASI ---
+
 
     const { files } = await parseForm(req);
 
-    // formidable may store file in files.avatar (based on field name) or other key
-    const fileCandidate = files?.avatar || files?.file || Object.values(files)[0];
+    // Dapatkan file dari field yang diupload (asumsi field name: 'avatar' atau 'file')
+    const fileCandidate = files.avatar || files.file || Object.values(files)[0];
+
     if (!fileCandidate) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
+    // Normalisasi file object
     const fileObj: any = Array.isArray(fileCandidate) ? fileCandidate[0] : fileCandidate;
 
-    // formidable v2 uses filepath
-    const tempPath = fileObj.filepath || fileObj.filepath || fileObj.path;
-    const originalName = fileObj.originalFilename || fileObj.originalFilename || fileObj.name || "avatar";
+    // Ambil path sementara (formidable v3 menggunakan filepath)
+    const tempPath = fileObj.filepath; 
+    const originalName = fileObj.originalFilename || "avatar";
 
     if (!tempPath || !fs.existsSync(tempPath)) {
-      return NextResponse.json({ error: "Uploaded file missing" }, { status: 500 });
+      return NextResponse.json({ error: "Uploaded file missing or failed to save" }, { status: 500 });
     }
 
-    // basic validation (MIME ext check)
+    // 1. Validasi Ekstensi
     const allowed = [".jpg", ".jpeg", ".png", ".gif"];
-    const ext = path.extname(originalName).toLowerCase() || path.extname(tempPath).toLowerCase();
+    const ext = path.extname(originalName).toLowerCase();
+    
     if (!allowed.includes(ext)) {
-      // cleanup temp
       try { fs.unlinkSync(tempPath); } catch (_) {}
-      return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
+      return NextResponse.json({ error: "Unsupported file type. Allowed: JPG, PNG, GIF" }, { status: 400 });
     }
 
-    // limit size check (2MB)
+    // 2. Validasi Ukuran (Max 2MB)
     const stats = fs.statSync(tempPath);
-    const maxSize = 2 * 1024 * 1024;
+    const maxSize = 2 * 1024 * 1024; 
     if (stats.size > maxSize) {
       try { fs.unlinkSync(tempPath); } catch (_) {}
       return NextResponse.json({ error: "File too large. Max 2MB" }, { status: 400 });
     }
 
-    // create unique filename and move file to public/uploads
+    // 3. Pindahkan File ke Lokasi Permanen
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
     const destPath = path.join(uploadDir, filename);
 
     fs.renameSync(tempPath, destPath);
 
-    // Build public URL
-    // If you want absolute URL, set BASE_URL in .env.local (e.g. http://localhost:3000)
+    // 4. Build URL Publik
     const baseUrl = process.env.BASE_URL?.replace(/\/$/, "") ?? "";
     const avatarUrl = baseUrl ? `${baseUrl}/uploads/${filename}` : `/uploads/${filename}`;
 
-    // If you want to update DB, do it here (requires token verification)
-    // Example: await prisma.user.update({ where: { id: userId }, data: { avatarUrl } });
+    // --- UPDATE DATABASE MONGODB DI SINI ---
+    /*
+    // Contoh update MongoDB (membutuhkan userId dari otentikasi)
+    import connectDB from "@/lib/mongodb";
+    import User from "@/models/User";
+    await connectDB();
+    await User.findByIdAndUpdate(userId, { avatarUrl }, { new: true });
+    */
+    // --- AKHIR UPDATE DATABASE ---
 
     return NextResponse.json({ avatarUrl });
   } catch (err: any) {
     console.error("avatar upload error:", err);
-    return NextResponse.json({ error: err?.message || "Server error" }, { status: 500 });
+    // Jika error dari formidable, seringkali itu masalah parsing
+    return NextResponse.json({ error: err?.message || "Server error during file parsing" }, { status: 500 });
   }
 }
