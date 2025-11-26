@@ -1,60 +1,50 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion"; // Import Framer Motion
+import { AnimatePresence } from "framer-motion";
+
+// --- Components Imports ---
 import CalendarWidget from "@/components/CalendarWidget";
 import EventModal from "@/components/dashboard/event/EventModal";
 import StatsSection from "@/components/dashboard/event/StatsSection";
 import EventItem from "@/components/dashboard/event/EventItem";
-import { IconSearch, IconPlus, IconCalendar, IconClose } from "@/components/icons";
 import { initialEvents } from "@/lib/data";
 
-// --- ICONS INTERNAL ---
-const IconCalendarInternal = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-);
-const IconCloseInternal = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-);
+// --- Refactored Components Imports ---
+import ActivityItem from "@/components/dashboard/event/ActivityItem";
+import EventHeader from "@/components/dashboard/event/EventHeader";
+import EventControls from "@/components/dashboard/event/EventControls";
+import MobileCalendarModal from "@/components/dashboard/event/MobileCalendarModal";
+import { IconCalendarInternal } from "@/components/dashboard/event/EventIcons";
 
-// --- ACTIVITY ITEM ---
-const ActivityItem = ({ action, title, time }) => {
-  let icon, color, bg;
-  switch (action) {
-    case "created": icon = <IconPlus />; color = "text-green-600"; bg = "bg-green-100"; break;
-    case "updated": icon = <IconCalendarInternal />; color = "text-blue-600"; bg = "bg-blue-100"; break;
-    case "deleted": icon = <IconCloseInternal />; color = "text-red-600"; bg = "bg-red-100"; break;
-    default: icon = <IconCalendarInternal />; color = "text-gray-600"; bg = "bg-gray-100";
-  }
-  return (
-    <div className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors border-b border-gray-50 last:border-0">
-      <div className={`flex-shrink-0 w-8 h-8 ${bg} ${color} rounded-full flex items-center justify-center mt-0.5`}>
-        <div className="scale-75">{icon}</div>
-      </div>
-      <div>
-        <p className="text-sm text-gray-800 font-medium leading-snug">
-          <span className="capitalize">{action}</span> event <span className="font-bold">"{title}"</span>
-        </p>
-        <p className="text-[10px] text-gray-400 mt-1 font-medium">{time}</p>
-      </div>
-    </div>
-  );
-};
+// IMPORT TIPE DATA SHARED (Hapus interface lokal)
+import { EventData, ActivityLog } from "@/lib/types";
 
 export default function EventPage() {
-  const [events, setEvents] = useState(initialEvents);
+  // --- STATE & NORMALISASI DATA ---
+  const [events, setEvents] = useState<EventData[]>(() => {
+    return (initialEvents as any[]).map(e => ({
+      ...e,
+      // Pastikan tags ada. Jika tidak, pakai category sebagai tag default
+      tags: e.tags || (e.category ? [e.category] : ["General"]),
+      startTime: e.startTime,
+      endTime: e.endTime,
+      attendees: e.attendees
+    }));
+  });
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [activities, setActivities] = useState([]);
+  const [activities, setActivities] = useState<ActivityLog[]>([]);
 
   // Modal & Animation State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null);
   const [isMobileCalendarOpen, setIsMobileCalendarOpen] = useState(false);
-  const [layoutId, setLayoutId] = useState(null); // ID Animasi Magic Motion
+  const [layoutId, setLayoutId] = useState<string | null>(null);
 
   // Helper Status
-  const getEventStatus = (dateStr) => {
+  const getEventStatus = (dateStr: string) => {
     const eventDate = new Date(dateStr);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -66,38 +56,47 @@ export default function EventPage() {
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
       const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase());
+      
       let matchesStatus = true;
       const status = getEventStatus(event.date);
+      
       if (filterStatus === "upcoming") matchesStatus = status === "upcoming";
       if (filterStatus === "completed") matchesStatus = status === "completed";
+      
       return matchesSearch && matchesStatus;
     });
   }, [events, searchTerm, filterStatus]);
 
   // Logs
-  const addActivity = (action, title) => {
-    const newLog = {
+  const addActivity = (action: string, title: string) => {
+    const newLog: ActivityLog = {
       id: Date.now(),
-      action, title,
+      action, 
+      title,
       time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
     };
     setActivities(prev => [newLog, ...prev].slice(0, 5));
   };
 
   // CRUD
-  const handleSaveEvent = (eventData) => {
-    const exists = events.find((e) => e.id === eventData.id);
+  const handleSaveEvent = (eventData: any) => {
+    const newEvent: EventData = {
+        ...eventData,
+        tags: eventData.tags || (eventData.category ? [eventData.category] : ["General"])
+    };
+
+    const exists = events.find((e) => e.id === newEvent.id);
     if (exists) {
-      setEvents((prev) => prev.map((e) => (e.id === eventData.id ? eventData : e)));
-      addActivity("updated", eventData.title);
+      setEvents((prev) => prev.map((e) => (e.id === newEvent.id ? newEvent : e)));
+      addActivity("updated", newEvent.title);
     } else {
-      setEvents((prev) => [eventData, ...prev]);
-      addActivity("created", eventData.title);
+      setEvents((prev) => [newEvent, ...prev]);
+      addActivity("created", newEvent.title);
     }
     closeModal();
   };
 
-  const handleDeleteEvent = (eventId) => {
+  const handleDeleteEvent = (eventId: number | string) => {
     const eventToDelete = events.find(e => e.id === eventId);
     setEvents((prev) => prev.filter((e) => e.id !== eventId));
     if (eventToDelete) addActivity("deleted", eventToDelete.title);
@@ -105,13 +104,13 @@ export default function EventPage() {
   };
 
   // --- MODAL HANDLERS ---
-  const openModalForCreate = (sourceId) => {
+  const openModalForCreate = (sourceId: string) => {
     setLayoutId(sourceId);
     setSelectedEvent(null);
     setIsModalOpen(true);
   };
 
-  const openModalForEdit = (event) => {
+  const openModalForEdit = (event: EventData) => {
     setLayoutId(`event-card-${event.id}`);
     setSelectedEvent(event);
     setIsModalOpen(true);
@@ -127,84 +126,29 @@ export default function EventPage() {
     <div className="min-h-screen bg-gray-50 font-sans flex flex-col">
       <main className="flex-1 p-3 md:p-6">
         
-        {/* Header */}
-        <div className="flex justify-between items-start mb-3">
-          <div>
-            <h2 className="text-xl md:text-2xl font-semibold text-gray-800">Events Dashboard</h2>
-            <p className="text-xs md:text-sm text-gray-500 mt-0.5">Manage and track all your events</p>
-          </div>
+        {/* HEADER */}
+        <EventHeader 
+          onOpenMobileCalendar={() => setIsMobileCalendarOpen(true)}
+          onOpenCreate={openModalForCreate}
+        />
 
-          <div className="flex gap-2 sm:hidden">
-            {/* TOMBOL KALENDER (ANIMASI MORPH) */}
-            <motion.button
-              layoutId="btn-calendar-mobile" // ID unik untuk morphing
-              onClick={() => setIsMobileCalendarOpen(true)}
-              className="flex items-center justify-center w-9 h-9 bg-white border border-gray-300 text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
-              whileTap={{ scale: 0.9 }}
-            >
-              <IconCalendarInternal />
-            </motion.button>
-            
-            {/* TOMBOL ADD (ANIMASI MORPH) */}
-            <motion.button
-              layoutId="fab-add-event"
-              onClick={() => openModalForCreate("fab-add-event")}
-              className="flex items-center justify-center w-9 h-9 bg-gray-900 text-white rounded-lg shadow-sm hover:bg-gray-800 transition-colors"
-              whileTap={{ scale: 0.9 }}
-            >
-              <IconPlus />
-            </motion.button>
-          </div>
-        </div>
-
-        {/* Stats */}
+        {/* STATS */}
         <StatsSection events={events} />
 
-        {/* Layout Utama */}
+        {/* LAYOUT UTAMA */}
         <div className="flex flex-col lg:flex-row mt-3 lg:mt-6 gap-3 lg:gap-6">
           <div className="flex-1">
             
-            {/* Search & Filter */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-2 sm:gap-3">
-              <div className="flex flex-1 gap-2 w-full sm:max-w-lg">
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    placeholder="Search events..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 text-gray-700 shadow-sm"
-                  />
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                    <IconSearch />
-                  </span>
-                </div>
-                <select 
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900 shadow-sm cursor-pointer hover:bg-gray-50"
-                >
-                  <option value="all">All Status</option>
-                  <option value="upcoming">Upcoming</option>
-                  <option value="completed">Completed</option>
-                </select>
-              </div>
-              
-              {/* TOMBOL ADD DESKTOP (ANIMASI) */}
-              <div className="hidden sm:flex w-auto">
-                <motion.button
-                  layoutId="btn-add-event"
-                  onClick={() => openModalForCreate("btn-add-event")}
-                  className="flex items-center justify-center space-x-2 px-3 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors shadow-sm whitespace-nowrap"
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <IconPlus />
-                  <span>New Event</span>
-                </motion.button>
-              </div>
-            </div>
+            {/* CONTROLS (SEARCH & FILTER) */}
+            <EventControls 
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              filterStatus={filterStatus}
+              setFilterStatus={setFilterStatus}
+              onOpenCreate={openModalForCreate}
+            />
 
-            {/* Event List */}
+            {/* EVENT LIST */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="p-3 sm:p-5 border-b border-gray-100">
                 <h3 className="text-base sm:text-lg font-semibold text-gray-800">
@@ -217,7 +161,7 @@ export default function EventPage() {
                     <EventItem
                       key={event.id}
                       event={event}
-                      onEdit={openModalForEdit} // Pass fungsi edit
+                      onEdit={openModalForEdit}
                     />
                   ))
                 ) : (
@@ -229,7 +173,7 @@ export default function EventPage() {
             </div>
           </div>
 
-          {/* Right Sidebar */}
+          {/* RIGHT SIDEBAR */}
           <aside className="w-full lg:w-80 flex flex-col gap-3 lg:gap-4 lg:mt-0">
             <div className="hidden lg:block">
               <CalendarWidget />
@@ -268,45 +212,13 @@ export default function EventPage() {
         )}
       </AnimatePresence>
 
-      {/* --- MOBILE CALENDAR MODAL (FIXED BLUR EXIT) --- */}
+      {/* MOBILE CALENDAR MODAL */}
       <AnimatePresence>
         {isMobileCalendarOpen && (
-          // Wrapper: Hapus style visual (bg/blur) dari sini biar pas exit gak nyangkut
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:hidden">
-            
-            {/* Backdrop: Pindah bg-black dan blur ke sini + tambah transition exit */}
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }} // Exit cepat (200ms)
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-              onClick={() => setIsMobileCalendarOpen(false)}
-            />
-
-            {/* Modal Content dengan Morphing */}
-            <motion.div 
-              layoutId="btn-calendar-mobile"
-              initial={false}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ type: "spring", stiffness: 350, damping: 25 }}
-              className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden relative z-10"
-            >
-              <div className="flex justify-between items-center p-3 border-b">
-                <h3 className="font-semibold text-gray-800 text-sm">Calendar</h3>
-                <button 
-                  onClick={() => setIsMobileCalendarOpen(false)}
-                  className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100"
-                >
-                  <IconCloseInternal />
-                </button>
-              </div>
-              <div className="p-3">
-                <CalendarWidget />
-              </div>
-            </motion.div>
-          </div>
+          <MobileCalendarModal 
+            isOpen={isMobileCalendarOpen} 
+            onClose={() => setIsMobileCalendarOpen(false)} 
+          />
         )}
       </AnimatePresence>
     </div>

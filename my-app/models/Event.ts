@@ -1,8 +1,9 @@
 import mongoose, { Schema, Document, models, Model } from 'mongoose';
 
-// Interface untuk TypeScript (cocok dengan EventType di frontend)
+// Interface untuk TypeScript
+// PERBAIKAN: Hapus '_id' dari sini karena sudah ada di dalam 'Document'
 export interface IEvent extends Document {
-  _id: string;
+  // _id: string; // <--- HAPUS BARIS INI (biar gak bentrok)
   title: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:MM

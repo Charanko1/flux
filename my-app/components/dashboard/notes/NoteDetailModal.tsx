@@ -1,9 +1,31 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
 import { FiX, FiTrash2, FiEdit2, FiCheck } from "react-icons/fi";
-import { motion } from "framer-motion"; // Import Framer Motion
+import { motion } from "framer-motion"; 
 
-export default function NoteDetailModal({ onClose, note, onDelete, onUpdate, layoutId }) {
+// 1. Definisikan Tipe Data Note
+interface Note {
+  id: string | number;
+  title: string;
+  content: string;
+  date: string;
+  color: string; // Pastikan properti color ada
+  category?: string;
+  priority?: string;
+}
+
+// 2. Definisikan Props Komponen
+interface NoteDetailModalProps {
+  onClose: () => void;
+  note: Note;
+  onDelete: (id: string | number) => void;
+  onUpdate: (note: Note) => void;
+  layoutId?: string | null; // Opsional atau bisa null
+}
+
+// 3. Pasang Interface di sini
+export default function NoteDetailModal({ onClose, note, onDelete, onUpdate, layoutId }: NoteDetailModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
@@ -16,7 +38,7 @@ export default function NoteDetailModal({ onClose, note, onDelete, onUpdate, lay
     }
   }, [note]);
 
-  const getTextColor = (bgColor) => {
+  const getTextColor = (bgColor: string) => {
     return ["#1F2937", "#111827"].includes(bgColor) ? "text-white" : "text-gray-800";
   };
 
@@ -47,7 +69,7 @@ export default function NoteDetailModal({ onClose, note, onDelete, onUpdate, lay
       
       {/* 2. KOTAK MODAL (Morphing dari Layout ID) */}
       <motion.div 
-        layoutId={layoutId} // Kunci Morphing
+        layoutId={layoutId || undefined} // Kunci Morphing
         className="relative w-full max-w-md rounded-xl shadow-2xl flex flex-col h-auto max-h-[80vh] overflow-hidden z-10"
         style={{ backgroundColor: note.color }}
         transition={{ type: "spring", stiffness: 350, damping: 25 }} // Efek membal halus

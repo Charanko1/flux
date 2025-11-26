@@ -1,4 +1,3 @@
-// app/dashboard/DashboardContent.jsx
 "use client";
 
 import React, { useMemo } from "react";
@@ -24,6 +23,7 @@ import {
   ArrowDownCircle,
 } from "lucide-react";
 import { parseDateIDN } from "@/lib/utils";
+import { TransactionData } from "./AddTransaction"; 
 
 // ==================================================================
 // CONFIGURATION & HELPERS
@@ -40,7 +40,10 @@ const PIE_COLORS = [
 ];
 const RADIAN = Math.PI / 180;
 
-const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
+// PERBAIKAN: Hapus atau abaikan Interface ketat, gunakan 'any' pada parameter fungsi render
+// Recharts mengirimkan props yang tipe-nya seringkali optional/undefined, jadi 'any' adalah solusi teraman.
+const renderCustomizedLabel = (props: any) => {
+  const { cx, cy, midAngle, innerRadius, outerRadius, percent, name } = props;
   const radius = innerRadius + (outerRadius - innerRadius) * 1.1;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
@@ -64,8 +67,16 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
 // MEMOIZED PRESENTATIONAL PARTS (COMPACT VERSION)
 // ==================================================================
 
-const DashboardStatCard = React.memo(({ title, amount, subtitle, icon, amountClassName = "" }) => (
-  // UBAHAN: p-3 md:p-4 (padding card lebih kecil)
+// 2. Interface untuk StatCard
+interface DashboardStatCardProps {
+  title: string;
+  amount: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  amountClassName?: string;
+}
+
+const DashboardStatCard = React.memo(({ title, amount, subtitle, icon, amountClassName = "" }: DashboardStatCardProps) => (
   <div className="bg-white p-3 md:p-4 rounded-lg shadow-sm border border-gray-100">
     <div className="flex justify-between items-start mb-1 md:mb-2">
       <span className="text-xs md:text-sm font-medium text-gray-600">{title}</span>
@@ -76,7 +87,16 @@ const DashboardStatCard = React.memo(({ title, amount, subtitle, icon, amountCla
   </div>
 ));
 
-const DashboardTransactionItem = React.memo(({ type, title, category, amount, date }) => {
+// 3. Interface untuk TransactionItem
+interface DashboardTransactionItemProps {
+  type: string;
+  title: string;
+  category: string;
+  amount: number;
+  date: string;
+}
+
+const DashboardTransactionItem = React.memo(({ type, title, category, amount, date }: DashboardTransactionItemProps) => {
   const isIncome = type === "income";
   const amountString = new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -87,7 +107,6 @@ const DashboardTransactionItem = React.memo(({ type, title, category, amount, da
     .replace("IDR", isIncome ? "+Rp" : "-Rp");
 
   return (
-    // UBAHAN: py-2 md:py-3 (list item lebih rapet)
     <div className="flex justify-between items-center py-2 md:py-3">
       <div className="flex items-center gap-2 md:gap-3">
         <div className={`p-1.5 md:p-2 rounded-full ${isIncome ? "bg-green-100" : "bg-red-100"}`}>
@@ -114,7 +133,22 @@ const DashboardTransactionItem = React.memo(({ type, title, category, amount, da
 // MEMOIZED CHARTS
 // ==================================================================
 
-const MemoBarChart = React.memo(function MemoBarChart({ data }) {
+// 4. Interface untuk Chart Data
+interface BarChartData {
+  name: string;
+  Income: number;
+  Expense: number;
+  [key: string]: any;
+}
+
+interface PieChartData {
+  name: string;
+  value: number;
+  percent: number;
+  [key: string]: any;
+}
+
+const MemoBarChart = React.memo(function MemoBarChart({ data }: { data: BarChartData[] }) {
   return (
     <ResponsiveContainer>
       <BarChart data={data} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
@@ -122,7 +156,7 @@ const MemoBarChart = React.memo(function MemoBarChart({ data }) {
         <YAxis axisLine={false} tickLine={false} fontSize={10} tickFormatter={(v) => (v === 0 ? "0" : `${v / 1000}k`)} />
         <Tooltip
           contentStyle={{ fontSize: "12px", borderRadius: "8px", padding: "8px" }}
-          formatter={(value, name) => [
+          formatter={(value: number, name: string) => [
             new Intl.NumberFormat("en-US", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(value).replace("IDR", "Rp"),
             name,
           ]}
@@ -136,7 +170,7 @@ const MemoBarChart = React.memo(function MemoBarChart({ data }) {
   );
 });
 
-const MemoPieChart = React.memo(function MemoPieChart({ data }) {
+const MemoPieChart = React.memo(function MemoPieChart({ data }: { data: PieChartData[] }) {
   return (
     <ResponsiveContainer>
       <PieChart>
@@ -157,7 +191,7 @@ const MemoPieChart = React.memo(function MemoPieChart({ data }) {
           ))}
         </Pie>
         <Tooltip
-          formatter={(value) => new Intl.NumberFormat("en-US", { style: "currency", currency: "IDR" }).format(value).replace("IDR", "Rp")}
+          formatter={(value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "IDR" }).format(value).replace("IDR", "Rp")}
         />
       </PieChart>
     </ResponsiveContainer>
@@ -168,14 +202,21 @@ const MemoPieChart = React.memo(function MemoPieChart({ data }) {
 // MAIN COMPONENT
 // ==================================================================
 
-export default function DashboardContent({ onAddTransaction, onShowHistory, transactions }) {
+// 5. Interface Props Dashboard
+interface DashboardContentProps {
+  onAddTransaction: () => void;
+  onShowHistory: () => void;
+  transactions: TransactionData[]; 
+}
+
+export default function DashboardContent({ onAddTransaction, onShowHistory, transactions }: DashboardContentProps) {
   // ---------------------------
   // Memoized totals & formats
   // ---------------------------
-  const formatCurrency = (value) =>
+  const formatCurrency = (value: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(Math.abs(value)).replace("IDR", "Rp");
 
-  const formatBalance = (value) =>
+  const formatBalance = (value: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(value).replace("IDR", "Rp");
 
   const { totalIncome, totalExpense, totalBalance } = useMemo(() => {
@@ -192,7 +233,7 @@ export default function DashboardContent({ onAddTransaction, onShowHistory, tran
   // Memoized PIE data
   // ---------------------------
   const dynamicPieChartData = useMemo(() => {
-    const map = {};
+    const map: Record<string, number> = {};
     for (const tx of transactions) {
       const key = tx.category || "Others";
       if (!map[key]) map[key] = 0;
@@ -210,7 +251,16 @@ export default function DashboardContent({ onAddTransaction, onShowHistory, tran
     today.setHours(0, 0, 0, 0);
     const dayFormatter = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short" });
 
-    const chartData = [];
+    // Definisikan tipe untuk item chart sementara
+    interface TempChartData {
+        name: string;
+        dateObj: Date;
+        Income: number;
+        Expense: number;
+        [key: string]: any; 
+    }
+
+    const chartData: TempChartData[] = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
@@ -234,10 +284,15 @@ export default function DashboardContent({ onAddTransaction, onShowHistory, tran
   // Recent transactions
   // ---------------------------
   const recentTransactions = useMemo(() => {
-    return [...transactions].sort((a, b) => parseDateIDN(b.date).getTime() - parseDateIDN(a.date).getTime()).slice(0, 5);
+    return [...transactions].sort((a, b) => {
+        const dateA = parseDateIDN(a.date);
+        const dateB = parseDateIDN(b.date);
+        // Handle null dates if parseDateIDN returns null
+        return (dateB ? dateB.getTime() : 0) - (dateA ? dateA.getTime() : 0);
+    }).slice(0, 5);
   }, [transactions]);
 
-  const chartWrapperStyle = {
+  const chartWrapperStyle: React.CSSProperties = {
     contain: "layout size",
     willChange: "transform",
     transform: "translateZ(0)",
@@ -247,11 +302,9 @@ export default function DashboardContent({ onAddTransaction, onShowHistory, tran
   // UI (COMPACT VERSION)
   // ---------------------------
   return (
-    // UBAHAN: p-3 md:p-5 (lebih kecil dari p-8)
     <main className="p-3 md:p-5 pb-20 min-h-[calc(100vh-64px)]">
       
       {/* Header */}
-      {/* UBAHAN: mb-3 (jarak header ke content deketan) */}
       <div className="flex flex-col md:flex-row justify-between md:items-center mb-3 gap-3">
         <div>
           <h2 className="text-xl md:text-2xl font-bold text-gray-900">Finance Dashboard</h2>
@@ -277,7 +330,6 @@ export default function DashboardContent({ onAddTransaction, onShowHistory, tran
       </div>
 
       {/* STAT CARDS */}
-      {/* UBAHAN: gap-2 md:gap-3 mb-3 (grid card lebih rapet) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3 mb-3">
         <DashboardStatCard title="Income (This Month)" amount={formattedIncome} subtitle="Total incoming" icon={<ArrowUpRight className="h-4 w-4 md:h-5 md:w-5 text-green-500" />} />
         <DashboardStatCard title="Expense (This Month)" amount={formattedExpense} subtitle="Total outgoing" icon={<ArrowDownRight className="h-4 w-4 md:h-5 md:w-5 text-red-500" />} />
@@ -285,10 +337,8 @@ export default function DashboardContent({ onAddTransaction, onShowHistory, tran
       </div>
 
       {/* CHART GRID */}
-      {/* UBAHAN: gap-3 mb-3 (jarak antar chart rapet) */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 mb-3">
         {/* BAR CHART */}
-        {/* UBAHAN: p-3 md:p-4 (padding dalam chart kecil) */}
         <div className="lg:col-span-3 bg-white p-3 md:p-4 rounded-lg shadow-sm border border-gray-100">
           <h3 className="text-sm md:text-base font-semibold text-gray-900 mb-2 md:mb-3">Activity (7 Days)</h3>
           <div className="h-[220px] md:h-[250px] w-full pointer-events-none" style={chartWrapperStyle}>
@@ -297,7 +347,6 @@ export default function DashboardContent({ onAddTransaction, onShowHistory, tran
         </div>
 
         {/* PIE CHART */}
-        {/* UBAHAN: p-3 md:p-4 */}
         <div className="lg:col-span-2 bg-white p-3 md:p-4 rounded-lg shadow-sm border border-gray-100">
           <h3 className="text-sm md:text-base font-semibold text-gray-900 mb-2 md:mb-3">Categories</h3>
           <div className="h-[220px] md:h-[250px] w-full pointer-events-none" style={chartWrapperStyle}>
@@ -307,7 +356,6 @@ export default function DashboardContent({ onAddTransaction, onShowHistory, tran
       </div>
 
       {/* TRANSACTIONS LIST */}
-      {/* UBAHAN: p-3 md:p-4 */}
       <div className="bg-white p-3 md:p-4 rounded-lg shadow-sm border border-gray-100">
         <h3 className="text-sm md:text-base font-semibold text-gray-900 mb-2">Latest Transactions</h3>
         <div className="divide-y divide-gray-200">

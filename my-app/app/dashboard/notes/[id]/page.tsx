@@ -2,52 +2,78 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import NoteDetailView from "@/components/dashboard/notes/NoteDetailView"; // 👈 Import komponen yg kita buat tadi
+import NoteDetailView from "@/components/dashboard/notes/NoteDetailView"; 
+
+// --- 1. UPDATE DEFINISI TIPE DATA ---
+// Tambahkan 'color' agar sesuai dengan yang diminta NoteDetailView
+interface Note {
+  id: string | number;
+  title: string;
+  content: string;
+  category: string;
+  priority: string;
+  date: string;
+  color: string; // Wajib ada sekarang
+}
 
 export default function NoteDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const [note, setNote] = useState(null);
+  
+  const [note, setNote] = useState<Note | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 1. Ambil data saat halaman dimuat
+  // Ambil data saat halaman dimuat
   useEffect(() => {
-    const savedNotes = JSON.parse(localStorage.getItem("notes") || "[]");
+    const rawData = JSON.parse(localStorage.getItem("notes") || "[]");
     
-    // Cari note yang ID-nya sama dengan params.id
-    // Pastikan tipe datanya sama (biasanya di URL string, di JSON number/string)
+    // --- 2. NORMALISASI DATA ---
+    // Kita map data mentah ke tipe Note yang benar.
+    // Jika data lama belum punya 'color', kita kasih default "#ffffff"
+    const savedNotes: Note[] = rawData.map((n: any) => ({
+      ...n,
+      color: n.color || "#ffffff", 
+      category: n.category || "General",
+      priority: n.priority || "Low"
+    }));
+    
     const foundNote = savedNotes.find((n) => String(n.id) === String(params.id));
     
-    setNote(foundNote);
+    setNote(foundNote || null);
     setLoading(false);
   }, [params.id]);
 
-  // 2. Fungsi Hapus Note
-  const handleDelete = (id) => {
+  // Fungsi Hapus Note
+  const handleDelete = (id: string | number) => {
     if (confirm("Yakin mau hapus catatan ini?")) {
-      const savedNotes = JSON.parse(localStorage.getItem("notes") || "[]");
-      const updatedNotes = savedNotes.filter((n) => n.id !== id);
+      const rawData = JSON.parse(localStorage.getItem("notes") || "[]");
+      // Filter dari data mentah agar aman
+      const updatedNotes = rawData.filter((n: any) => String(n.id) !== String(id));
       
       localStorage.setItem("notes", JSON.stringify(updatedNotes));
-      router.push("/dashboard/notes"); // Balik ke halaman list setelah hapus
+      router.push("/dashboard/notes"); 
     }
   };
 
   // State Loading
   if (loading) {
-    return <div className="p-10 text-center text-gray-500">Loading note...</div>;
+    return (
+        <div className="flex h-screen items-center justify-center bg-gray-50">
+            <div className="text-gray-500 animate-pulse">Loading note...</div>
+        </div>
+    );
   }
 
   // State Jika Tidak Ketemu
   if (!note) {
     return (
-      <div className="p-10 text-center">
-        <p className="text-gray-500 mb-4">Catatan tidak ditemukan.</p>
+      <div className="flex flex-col h-screen items-center justify-center bg-gray-50 p-6">
+        <p className="text-gray-500 mb-4 font-medium">Catatan tidak ditemukan.</p>
         <button 
           onClick={() => router.push("/dashboard/notes")}
-          className="text-blue-500 hover:underline"
+          className="text-blue-600 hover:text-blue-700 font-medium hover:underline transition-all"
         >
-          Kembali ke daftar
+          &larr; Kembali ke daftar
         </button>
       </div>
     );
@@ -55,7 +81,18 @@ export default function NoteDetailPage() {
 
   // Render Komponen View
   return (
-    <div className="p-6 lg:p-8 bg-gray-50 min-h-screen w-full">
+    <div className="p-4 md:p-6 lg:p-8 bg-gray-50 min-h-screen w-full">
+      {/* Tombol Back di Mobile */}
+      <div className="mb-4 md:hidden">
+         <button 
+          onClick={() => router.push("/dashboard/notes")}
+          className="text-gray-500 hover:text-gray-900 text-sm flex items-center gap-1"
+        >
+          &larr; Back
+        </button>
+      </div>
+
+      {/* Error hilang karena objek 'note' sekarang punya properti 'color' */}
       <NoteDetailView note={note} onDelete={handleDelete} />
     </div>
   );

@@ -12,18 +12,64 @@ import {
   XCircle
 } from "lucide-react";
 
-/* --- MOCK CONTEXT --- */
-const AuthContext = createContext(null);
+/* --- 1. DEFINISI TIPE DATA (TYPES) --- */
+interface UserData {
+  username: string;
+  email: string;
+  name: string;
+  avatarUrl: string | null;
+}
 
-const MockAuthProvider = ({ children }) => {
-  const [user, setUser] = useState({
+interface AuthContextType {
+  user: UserData;
+  updateUser: (updates: Partial<UserData>) => Promise<UserData>;
+}
+
+interface SettingsCardProps {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+  danger?: boolean;
+}
+
+interface InputFieldProps {
+  label: string;
+  id: string;
+  type?: string;
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}
+
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+  variant?: "primary" | "secondary" | "danger";
+  icon?: React.ReactNode;
+  fullWidthMobile?: boolean;
+}
+
+interface ToggleProps {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}
+
+/* --- MOCK CONTEXT --- */
+// Kita definisikan context bisa null di awal
+const AuthContext = createContext<AuthContextType | null>(null);
+
+const MockAuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<UserData>({
     username: "johndoe",
     email: "john.doe@example.com",
     name: "John Doe",
     avatarUrl: null
   });
 
-  const updateUser = async (updates) => {
+  const updateUser = async (updates: Partial<UserData>) => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     setUser((prev) => ({ ...prev, ...updates }));
     return { ...user, ...updates };
@@ -39,9 +85,10 @@ const MockAuthProvider = ({ children }) => {
 const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
+    // Fallback mock jika provider lupa dipasang
     return { 
-      user: { username: "guest", email: "guest@example.com" }, 
-      updateUser: async () => {} 
+      user: { username: "guest", email: "guest@example.com", name: "Guest", avatarUrl: null }, 
+      updateUser: async () => ({ username: "guest", email: "guest", name: "Guest", avatarUrl: null }) 
     };
   }
   return context;
@@ -49,26 +96,24 @@ const useAuth = () => {
 
 /* --- REUSABLE COMPONENTS --- */
 
-function SettingsCard({ icon, title, subtitle, children, danger = false }) {
+function SettingsCard({ icon, title, subtitle, children, danger = false }: SettingsCardProps) {
   return (
     <div className={`overflow-hidden rounded-xl border bg-white shadow-sm ${danger ? 'border-red-200' : 'border-gray-200'}`}>
-      {/* Header: Padding lebih kecil di mobile (px-4 py-3) dan normal di desktop (sm:px-6 sm:py-4) */}
       <div className={`border-b px-4 py-3 sm:px-6 sm:py-4 flex items-start gap-3 sm:gap-4 ${danger ? 'bg-red-50 border-red-100' : 'bg-white border-gray-100'}`}>
         <div className={`rounded-lg p-2 shrink-0 ${danger ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
           {icon}
         </div>
-        <div className="min-w-0"> {/* min-w-0 mencegah text overflow */}
+        <div className="min-w-0">
           <h3 className={`text-base sm:text-lg font-semibold truncate ${danger ? 'text-red-900' : 'text-gray-900'}`}>{title}</h3>
           <p className={`text-xs sm:text-sm ${danger ? 'text-red-700' : 'text-gray-500'}`}>{subtitle}</p>
         </div>
       </div>
-      {/* Body: Padding lebih kecil di mobile */}
       <div className="p-4 sm:p-6">{children}</div>
     </div>
   );
 }
 
-function InputField({ label, id, type = "text", value, onChange, placeholder, disabled = false }) {
+function InputField({ label, id, type = "text", value, onChange, placeholder, disabled = false }: InputFieldProps) {
   return (
     <div className="w-full">
       <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
@@ -94,7 +139,7 @@ function InputField({ label, id, type = "text", value, onChange, placeholder, di
   );
 }
 
-function Button({ children, variant = "primary", icon, className = "", fullWidthMobile = false, ...rest }) {
+function Button({ children, variant = "primary", icon, className = "", fullWidthMobile = false, ...rest }: ButtonProps) {
   const baseStyle =
     "inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed";
   
@@ -104,7 +149,6 @@ function Button({ children, variant = "primary", icon, className = "", fullWidth
     danger: "border-transparent bg-red-600 text-white hover:bg-red-700 focus:ring-red-500",
   };
 
-  // Logic: Jika fullWidthMobile true, tombol jadi 100% width di layar kecil
   const mobileWidthClass = fullWidthMobile ? "w-full sm:w-auto" : "";
 
   return (
@@ -115,7 +159,7 @@ function Button({ children, variant = "primary", icon, className = "", fullWidth
   );
 }
 
-function Toggle({ label, description, checked, onChange }) {
+function Toggle({ label, description, checked, onChange }: ToggleProps) {
   return (
     <div className="flex items-center justify-between py-3 sm:py-4 first:pt-0 last:pb-0 gap-4">
       <div className="flex flex-col">
@@ -140,12 +184,18 @@ function Toggle({ label, description, checked, onChange }) {
 
 /* --- SUB-SECTIONS --- */
 
-const ProfileSection = ({ user, updateUser, openModal }) => {
+interface ProfileSectionProps {
+  user: UserData;
+  updateUser: (updates: Partial<UserData>) => Promise<UserData>;
+  openModal: () => void;
+}
+
+const ProfileSection = ({ user, updateUser, openModal }: ProfileSectionProps) => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState(null);
+  const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -175,7 +225,6 @@ const ProfileSection = ({ user, updateUser, openModal }) => {
   return (
     <SettingsCard icon={<UserIcon size={20} />} title="Profile" subtitle="Manage your info">
       <div className="flex flex-col gap-6">
-        {/* Avatar Row: Flex-Col di mobile (stack center), Flex-Row di desktop */}
         <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-center sm:text-left">
           <div className="relative h-20 w-20 sm:h-24 sm:w-24 overflow-hidden rounded-full bg-gray-100 ring-4 ring-white shadow-sm shrink-0">
             {user?.avatarUrl ? (
@@ -192,7 +241,6 @@ const ProfileSection = ({ user, updateUser, openModal }) => {
           </div>
         </div>
 
-        {/* Form Grid */}
         <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2">
           <InputField label="Full Name" id="fullname" value={fullName} onChange={setFullName} placeholder="John Doe" />
           <InputField label="Username" id="username" value={username} onChange={setUsername} placeholder="johndoe" />
@@ -201,7 +249,6 @@ const ProfileSection = ({ user, updateUser, openModal }) => {
           </div>
         </div>
 
-        {/* Feedback & Action: Stack di mobile, Row di desktop */}
         <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-4 border-t border-gray-100 pt-6">
           <div className="text-sm w-full sm:w-auto text-center sm:text-left h-6">
             {message && (
@@ -221,7 +268,7 @@ const ProfileSection = ({ user, updateUser, openModal }) => {
 };
 
 const NotificationSection = () => {
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<Record<string, boolean>>({
     email: true,
     push: false,
     tasks: true,
@@ -229,7 +276,7 @@ const NotificationSection = () => {
   });
   const [saving, setSaving] = useState(false);
 
-  const toggle = (key) => setSettings(prev => ({ ...prev, [key]: !prev[key] }));
+  const toggle = (key: string) => setSettings(prev => ({ ...prev, [key]: !prev[key] }));
 
   const handleSave = () => {
     setSaving(true);
@@ -277,7 +324,7 @@ const SecuritySection = () => {
   const [passwords, setPasswords] = useState({ current: "", new: "", confirm: "" });
   const [error, setError] = useState("");
 
-  const handleChange = (field, val) => setPasswords(prev => ({ ...prev, [field]: val }));
+  const handleChange = (field: string, val: string) => setPasswords(prev => ({ ...prev, [field]: val }));
 
   const handleSubmit = () => {
     setError("");
@@ -341,7 +388,6 @@ const DangerZone = () => {
       subtitle="Irreversible actions" 
       danger={true}
     >
-      {/* Layout: Stack (kolom) di mobile, Row di desktop */}
       <div className="rounded-lg border border-red-100 bg-red-50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="text-center sm:text-left">
           <h4 className="text-sm font-medium text-red-900">Delete Account</h4>
@@ -361,11 +407,11 @@ function SettingsContent() {
   const { user, updateUser } = useAuth();
   
   const [isOpen, setIsOpen] = useState(false);
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState(null);
-  const [fileError, setFileError] = useState(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const openModal = () => {
     setFile(null); setPreview(null); setFileError(null); setIsOpen(true);
@@ -377,7 +423,7 @@ function SettingsContent() {
     setPreview(null); setFileError(null);
   };
 
-  const validateAndSetFile = (f) => {
+  const validateAndSetFile = (f: File) => {
     const allowed = ["image/jpeg", "image/png", "image/gif"];
     if (!allowed.includes(f.type)) {
       setFileError("Format must be JPG, PNG, GIF");
@@ -392,7 +438,7 @@ function SettingsContent() {
     return true;
   };
 
-  const onFilePicked = (e) => {
+  const onFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (f) validateAndSetFile(f);
   };
@@ -402,7 +448,8 @@ function SettingsContent() {
     setUploading(true);
     try {
       await new Promise(r => setTimeout(r, 1500));
-      const fakeUrl = preview; 
+      // In real app, upload file here and get URL
+      const fakeUrl = preview || ""; 
       await updateUser({ avatarUrl: fakeUrl });
       setUploading(false);
       closeModal();
@@ -414,16 +461,13 @@ function SettingsContent() {
 
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20">
-      {/* Container: Padding vertical dikurangi di mobile (py-6) */}
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
         
-        {/* Header Section */}
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">Settings</h1>
           <p className="mt-1 sm:mt-2 text-sm sm:text-base text-gray-500">Manage your preferences and account settings.</p>
         </div>
 
-        {/* Stack of Cards */}
         <div className="flex flex-col gap-4 sm:gap-8">
           <ProfileSection user={user} updateUser={updateUser} openModal={openModal} />
           <NotificationSection />
@@ -465,19 +509,19 @@ function SettingsContent() {
                     </div>
                   ) : (
                     <>
-                     <div className="rounded-full bg-amber-100 p-3 sm:p-4">
+                      <div className="rounded-full bg-amber-100 p-3 sm:p-4">
                         <UserIcon size={32} className="text-amber-600" />
-                     </div>
-                     <div className="text-center px-4">
-                       <p className="text-sm font-medium text-gray-900">
-                         <label htmlFor="file-upload" className="cursor-pointer text-amber-600 hover:text-amber-500 hover:underline">
-                           Click to upload
-                         </label>
-                         <span className="hidden sm:inline"> or drag and drop</span>
-                       </p>
-                       <p className="text-xs text-gray-500 mt-1">JPG, PNG, GIF up to 2MB</p>
-                     </div>
-                     <input ref={fileInputRef} id="file-upload" type="file" className="hidden" accept="image/*" onChange={onFilePicked} />
+                      </div>
+                      <div className="text-center px-4">
+                        <p className="text-sm font-medium text-gray-900">
+                          <label htmlFor="file-upload" className="cursor-pointer text-amber-600 hover:text-amber-500 hover:underline">
+                            Click to upload
+                          </label>
+                          <span className="hidden sm:inline"> or drag and drop</span>
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">JPG, PNG, GIF up to 2MB</p>
+                      </div>
+                      <input ref={fileInputRef} id="file-upload" type="file" className="hidden" accept="image/*" onChange={onFilePicked} />
                     </>
                   )}
               </div>

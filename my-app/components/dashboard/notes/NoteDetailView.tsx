@@ -4,9 +4,25 @@ import React from "react";
 import Link from "next/link";
 import { FiTrash2, FiArrowLeft } from "react-icons/fi";
 
-export default function NoteDetailView({ note, onDelete }) {
+// 1. Definisikan Tipe Data Note
+interface Note {
+  id: string | number;
+  title: string;
+  content: string;
+  date: string;
+  color: string; // Properti color wajib ada karena dipakai di getTextColor
+}
+
+// 2. Definisikan Props Komponen
+interface NoteDetailViewProps {
+  note: Note | null; // Note bisa null jika belum dimuat
+  onDelete: (id: string | number) => void;
+}
+
+// 3. Pasang Interface di sini
+export default function NoteDetailView({ note, onDelete }: NoteDetailViewProps) {
   // Fungsi helper untuk warna text berdasarkan background
-  const getTextColor = (bgColor) => {
+  const getTextColor = (bgColor: string) => {
     return ["#1F2937", "#111827"].includes(bgColor)
       ? "text-white"
       : "text-gray-800";

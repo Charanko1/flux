@@ -1,13 +1,20 @@
 import React from 'react';
-import { motion } from "framer-motion"; // Import motion
+import { motion } from "framer-motion";
 import { IconCalendar, IconMapPin, IconClock, IconUsers } from '@/components/icons';
 import { formatDate } from '@/lib/date';
 import { getTagColor } from '@/lib/ui';
 
-const EventItem = ({ event, onEdit }) => {
+// PERBAIKAN: Import EventData dari shared types, bukan buat interface lokal
+import { EventData } from '@/lib/types';
+
+interface EventItemProps {
+  event: EventData;
+  onEdit: (event: EventData) => void;
+}
+
+const EventItem = ({ event, onEdit }: EventItemProps) => {
   
-  // Logic Status
-  const getStatus = (dateStr) => {
+  const getStatus = (dateStr: string) => {
     const eventDate = new Date(dateStr);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -18,7 +25,7 @@ const EventItem = ({ event, onEdit }) => {
 
   const status = getStatus(event.date);
 
-  const statusStyles = {
+  const statusStyles: Record<string, string> = {
     upcoming: "bg-blue-50 text-blue-600 border-blue-100",
     today: "bg-green-50 text-green-600 border-green-100 animate-pulse",
     completed: "bg-gray-50 text-gray-500 border-gray-100",
@@ -26,11 +33,9 @@ const EventItem = ({ event, onEdit }) => {
 
   return (
     <motion.div 
-      // UBAHAN: Pake layoutId biar bisa morphing
       layoutId={`event-card-${event.id}`}
       className="p-2.5 sm:p-4 bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
       onClick={() => onEdit(event)}
-      // Animasi masuk
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.9 }}

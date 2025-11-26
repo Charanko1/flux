@@ -1,6 +1,7 @@
-// lib/ui.js
+// lib/ui.ts
 
-export const getTagColor = (tag) => {
+// PERBAIKAN: Tambahkan ': string' setelah 'tag'
+export const getTagColor = (tag: string) => {
   switch (tag.toLowerCase()) {
     case 'meeting':
       return 'bg-orange-100 text-orange-700';

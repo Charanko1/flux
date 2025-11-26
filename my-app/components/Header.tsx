@@ -1,7 +1,13 @@
-import { Bell, Menu } from 'lucide-react'; // 1. Jangan lupa import Menu
+import { Bell, Menu } from 'lucide-react';
 
-// 2. Tambahkan prop 'onMenuClick'
-const Header = ({ title, onMenuClick }) => (
+// 1. Definisikan Tipe Data Props-nya
+interface HeaderProps {
+  title: string;
+  onMenuClick: () => void;
+}
+
+// 2. Pasang tipe data 'HeaderProps' di sini
+const Header = ({ title, onMenuClick }: HeaderProps) => (
   <header className="bg-white sticky top-0 z-10 shadow-sm border-b border-gray-200">
     <div className="flex justify-between items-center px-4 py-3 md:px-6 md:py-4">
       
@@ -9,14 +15,12 @@ const Header = ({ title, onMenuClick }) => (
       <div className="flex items-center gap-3 overflow-hidden max-w-[70%]">
         
         {/* --- TOMBOL MENU (MOBILE ONLY) --- */}
-        {/* md:hidden artinya hilang di desktop */}
         <button 
           onClick={onMenuClick}
           className="md:hidden text-gray-500 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors"
         >
           <Menu size={24} />
         </button>
-        {/* --------------------------------- */}
 
         {/* TITLE */}
         <h1 className="text-lg md:text-2xl font-bold text-gray-900 truncate">

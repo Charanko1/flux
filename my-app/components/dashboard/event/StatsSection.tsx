@@ -1,17 +1,24 @@
-// components/dashboard/event/StatsSection.jsx
 import React from 'react';
 import StatsCard from './StatsCard';
 import { IconCalendar, IconClock, IconUsers, IconCheckCircle } from '@/components/icons';
+// 1. Import tipe data shared
+import { EventData } from '@/lib/types';
 
-const StatsSection = ({ events }) => {
+// 2. Definisikan Props
+interface StatsSectionProps {
+  events: EventData[];
+}
+
+// 3. Pasang Interface di sini
+const StatsSection = ({ events }: StatsSectionProps) => {
   const upcomingEvents = events.filter(e => new Date(e.date) >= new Date()).length;
-  const totalAttendees = events.reduce((sum, e) => sum + e.attendees, 0);
+  
+  // Pastikan attendees ada (default 0 jika undefined) biar reduce ga error
+  const totalAttendees = events.reduce((sum, e) => sum + (Number(e.attendees) || 0), 0);
+  
   const completedEvents = events.filter(e => new Date(e.date) < new Date()).length;
 
   return (
-    // PERUBAHAN DI SINI:
-    // 'grid-cols-2': Artinya default (mobile) langsung bagi 2 kolom.
-    // 'lg:grid-cols-4': Artinya di layar besar (desktop) jadi 4 kolom.
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <StatsCard
         title="Total Events"

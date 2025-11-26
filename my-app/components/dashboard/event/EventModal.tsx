@@ -2,10 +2,23 @@
 
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import { motion } from "framer-motion"; // Import Motion
+import { motion } from "framer-motion";
+// 1. Import Tipe Data Shared
+import { EventData } from "@/lib/types";
 
-export default function EventModal({ event, onSave, onClose, onDelete, layoutId }) {
-  const [formData, setFormData] = useState(
+// 2. Definisikan Interface Props
+interface EventModalProps {
+  event: EventData | null; // Event bisa null kalau mode "Add New"
+  onSave: (data: any) => void; // Menggunakan 'any' sementara untuk fleksibilitas data submit
+  onClose: () => void;
+  onDelete: (id: number | string) => void;
+  layoutId: string | null;
+}
+
+// 3. Pasang Interface di sini
+export default function EventModal({ event, onSave, onClose, onDelete, layoutId }: EventModalProps) {
+  // Gunakan 'any' untuk state form karena struktur 'tags' berubah-ubah (string vs array) saat editing
+  const [formData, setFormData] = useState<any>(
     event || {
       title: "",
       date: "",
@@ -33,33 +46,31 @@ export default function EventModal({ event, onSave, onClose, onDelete, layoutId 
     }
   }, [event]);
 
-  const handleChange = (e) => {
+  // Tambahkan tipe React.ChangeEvent
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
-    setFormData((prev) => ({
+    setFormData((prev: any) => ({
       ...prev,
-      [name]: type === "number" ? parseInt(value, 10) : value
+      [name]: type === "number" ? (value ? parseInt(value, 10) : 0) : value
     }));
   };
 
   // Logic unik punya abang (Tags dipisah koma)
-  const handleTagChange = (e) => {
-    // Simpan sebagai string di state lokal biar enak diedit di input
-    // Nanti pas submit baru di-split kalau perlu, atau biarkan logic parent yang handle
-    // Tapi karena di props onSave abang kirim object utuh, kita sesuaikan di sini:
-    setFormData((prev) => ({
+  const handleTagChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev: any) => ({
       ...prev,
       tags: e.target.value // Simpan string dulu agar input text aman
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Pas save, konversi tags string ke array (kalau backend butuh array)
-    // Atau kirim string kalau logic parent abang handle string.
-    // Di sini saya asumsikan parent handle array seperti kode sebelumnya:
+    // Pas save, konversi tags string ke array jika perlu
     const submittedData = {
         ...formData,
-        tags: Array.isArray(formData.tags) ? formData.tags : formData.tags.split(",").map(t => t.trim()),
+        tags: Array.isArray(formData.tags) 
+          ? formData.tags 
+          : formData.tags.toString().split(",").map((t: string) => t.trim()),
         id: event ? event.id : crypto.randomUUID()
     };
     onSave(submittedData);
@@ -78,9 +89,8 @@ export default function EventModal({ event, onSave, onClose, onDelete, layoutId 
       />
 
       {/* MODAL CARD (MORPHING) */}
-      {/* Kita pake style punya abang: rounded-xl, max-h-[90vh], dll */}
       <motion.div 
-        layoutId={layoutId} // Kunci animasi magic motion
+        layoutId={layoutId || undefined} // Kunci animasi magic motion
         initial={!layoutId ? { opacity: 0, scale: 0.9 } : undefined}
         animate={!layoutId ? { opacity: 1, scale: 1 } : undefined}
         exit={!layoutId ? { opacity: 0, scale: 0.9 } : undefined}
@@ -112,7 +122,6 @@ export default function EventModal({ event, onSave, onClose, onDelete, layoutId 
               onChange={handleChange}
               placeholder="Enter event title"
               className="w-full rounded-lg bg-[#F5F6FA] px-3 py-2 text-sm text-gray-900 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-900"
-              // AutoFocus dimatikan biar animasi di HP smooth
             />
           </div>
 
@@ -136,7 +145,7 @@ export default function EventModal({ event, onSave, onClose, onDelete, layoutId 
               <input
                 type="time"
                 name="startTime"
-                value={formData.startTime}
+                value={formData.startTime || ""}
                 onChange={handleChange}
                 className="w-full rounded-lg bg-[#F5F6FA] px-3 py-2 text-sm text-gray-900 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-900"
               />
@@ -147,7 +156,7 @@ export default function EventModal({ event, onSave, onClose, onDelete, layoutId 
               <input
                 type="time"
                 name="endTime"
-                value={formData.endTime}
+                value={formData.endTime || ""}
                 onChange={handleChange}
                 className="w-full rounded-lg bg-[#F5F6FA] px-3 py-2 text-sm text-gray-900 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-900"
               />
@@ -161,7 +170,7 @@ export default function EventModal({ event, onSave, onClose, onDelete, layoutId 
               type="text"
               name="location"
               placeholder="Enter location"
-              value={formData.location}
+              value={formData.location || ""}
               onChange={handleChange}
               className="w-full rounded-lg bg-[#F5F6FA] px-3 py-2 text-sm text-gray-900 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-900"
             />
@@ -174,7 +183,7 @@ export default function EventModal({ event, onSave, onClose, onDelete, layoutId 
               type="number"
               name="attendees"
               min="0"
-              value={formData.attendees}
+              value={formData.attendees || 0}
               onChange={handleChange}
               className="w-full rounded-lg bg-[#F5F6FA] px-3 py-2 text-sm text-gray-900 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-900"
             />

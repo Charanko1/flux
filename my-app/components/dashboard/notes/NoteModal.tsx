@@ -1,9 +1,27 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
 import { FiX } from "react-icons/fi"; 
-import { motion } from "framer-motion"; // Import Motion
+import { motion } from "framer-motion"; 
 
-export default function NoteModal({ isOpen, onClose, onSave, layoutId }) {
+// 1. Definisikan tipe data untuk Note yang akan dibuat
+interface NewNoteData {
+  id: number;
+  title: string;
+  content: string;
+  color: string;
+  date: string;
+}
+
+// 2. Definisikan Interface untuk Props
+interface NoteModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (note: NewNoteData) => void;
+  layoutId?: string | null; // Opsional karena bisa null
+}
+
+export default function NoteModal({ isOpen, onClose, onSave, layoutId }: NoteModalProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [color, setColor] = useState("#FACC15");
@@ -25,7 +43,7 @@ export default function NoteModal({ isOpen, onClose, onSave, layoutId }) {
       return;
     }
     
-    const newNote = {
+    const newNote: NewNoteData = {
       id: Date.now(),
       title,
       content,
@@ -36,8 +54,7 @@ export default function NoteModal({ isOpen, onClose, onSave, layoutId }) {
     onSave(newNote); 
   };
 
-  // Jika layoutId ada, kita biarkan framer-motion yang handle visibility (lewat AnimatePresence)
-  // Jadi if (!isOpen) return null; boleh dihapus atau disesuaikan jika pakai AnimatePresence di parent
+  // Jika layoutId ada, kita biarkan framer-motion yang handle visibility
   if (!isOpen && !layoutId) return null;
 
   return (
@@ -55,7 +72,7 @@ export default function NoteModal({ isOpen, onClose, onSave, layoutId }) {
       
       {/* KOTAK MODAL: Magic Motion Morphing */}
       <motion.div 
-        layoutId={layoutId} // ID yang sama dengan tombol di parent
+        layoutId={layoutId || undefined} // ID yang sama dengan tombol di parent
         initial={!layoutId ? { opacity: 0, scale: 0.9 } : undefined}
         animate={!layoutId ? { opacity: 1, scale: 1 } : undefined}
         exit={!layoutId ? { opacity: 0, scale: 0.9 } : undefined}

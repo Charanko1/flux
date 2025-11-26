@@ -1,222 +1,26 @@
 "use client";
 
 import React, { useState, useEffect, memo } from "react";
-import { motion, AnimatePresence } from "framer-motion"; // Import Framer Motion
+import { motion, AnimatePresence } from "framer-motion";
+import { FiCalendar, FiX } from "react-icons/fi";
+
+// IMPORT COMPONENTS KITA (Sesuaikan path)
 import CalendarWidget from "@/components/CalendarWidget";
-// Import Recharts untuk Grafik
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import {
-  FiFileText,
-  FiCheckSquare,
-  FiClock,
-  FiChevronDown,
-  FiAlertCircle,
-  FiCalendar,
-  FiX,
-} from "react-icons/fi";
+import { 
+  ProjectCard, 
+  ActivityChart, 
+  SummaryCard, 
+  getTextColor 
+} from "@/components/dashboard/DashboardComponents"; // Sesuaikan path
 
-const priorityValues = { High: 3, Medium: 2, Low: 1 };
+// IMPORT TYPES
+import { Task, Transaction, DashboardSummary, ChartData } from "@/components/dashboard/types"; // Sesuaikan path
 
-// --- Helper Functions ---
-const calculateRemainingTime = (dueDate) => {
-  if (!dueDate) return "No date";
-  const now = new Date();
-  const deadline = new Date(dueDate);
-  const diff = deadline.getTime() - now.getTime();
-  if (diff <= 0) return "Overdue";
-  const totalSeconds = Math.floor(diff / 1000);
-  const days = Math.floor(totalSeconds / (3600 * 24));
-  const hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
-  const seconds = totalSeconds % 60;
-  return `${days}d ${hours}h ${seconds}s`;
-};
+const priorityValues: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
 
-const calculateProgress = (startDate, dueDate) => {
-  if (!startDate || !dueDate) return 0;
-  const start = new Date(startDate).getTime();
-  const end = new Date(dueDate).getTime();
-  const now = new Date().getTime();
-  if (now >= end) return 0;
-  if (now <= start) return 100;
-  const totalDuration = end - start;
-  if (totalDuration <= 0) return 0;
-  const remainingDuration = end - now;
-  return Math.min(100, Math.max(0, (remainingDuration / totalDuration) * 100));
-};
-
-const getTextColor = (bgColor) => {
-  if (!bgColor) return "text-gray-800";
-  const darkColors = ["#1F2937", "#111827", "#4B5563"];
-  if (darkColors.includes(bgColor)) return "text-white";
-  return "text-gray-800";
-};
-
-// --------------------------------------------
-// SUBCOMPONENTS (DEFINED FIRST TO AVOID ERROR)
-// --------------------------------------------
-
-const PriorityTag = memo(({ priority }) => {
-  const base = "inline-flex items-center gap-1 px-2 py-[1px] md:py-[2px] rounded-full text-[10px] md:text-xs font-medium w-fit";
-  const styles = {
-    High: "bg-red-500 text-white",
-    Medium: "bg-yellow-500 text-white", 
-    Low: "bg-green-500 text-white"
-  };
-  return (
-    <span className={`${base} ${styles[priority]}`}>
-      <FiAlertCircle size={11} />
-      {priority}
-    </span>
-  );
-});
-PriorityTag.displayName = "PriorityTag";
-
-const TaskProgress = memo(({ startDate, dueDate }) => {
-  const [remainingTime, setRemainingTime] = useState("");
-  const [progress, setProgress] = useState(100);
-  useEffect(() => {
-    const refresh = () => {
-      setRemainingTime(calculateRemainingTime(dueDate));
-      setProgress(calculateProgress(startDate, dueDate));
-    };
-    refresh();
-    const timer = setInterval(refresh, 1000);
-    return () => clearInterval(timer);
-  }, [startDate, dueDate]);
-  return (
-    <div className="mt-auto">
-      <div className="flex justify-between items-center mb-1.5">
-        <span className="text-[10px] text-gray-400 flex items-center gap-1"><FiClock size={10} />Remaining</span>
-        <span className="text-[10px] font-semibold text-gray-700 tabular-nums">{remainingTime}</span>
-      </div>
-      <div className="w-full bg-gray-100 rounded-full h-1 overflow-hidden">
-        <div className="h-1 bg-orange-400 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
-      </div>
-    </div>
-  );
-});
-TaskProgress.displayName = "TaskProgress";
-
-const ProjectCard = memo(({ title, dueDate, priority, startDate }) => {
-  return (
-    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-3 hover:shadow-md transition-shadow h-full">
-      <div className="flex justify-between items-start gap-2">
-        <h4 className="font-semibold text-sm text-gray-800 line-clamp-2 leading-snug" title={title}>{title}</h4>
-        <PriorityTag priority={priority} />
-      </div>
-      <TaskProgress startDate={startDate} dueDate={dueDate} />
-    </div>
-  );
-});
-ProjectCard.displayName = "ProjectCard";
-
-const ActivityChart = memo(({ data }) => {
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
-        <XAxis 
-          dataKey="name" 
-          tickLine={false} 
-          axisLine={false} 
-          fontSize={10} 
-          tickMargin={8} 
-          stroke="#9CA3AF"
-        />
-        <YAxis 
-          axisLine={false} 
-          tickLine={false} 
-          fontSize={10} 
-          tickFormatter={(v) => (v === 0 ? "0" : `${v / 1000}k`)} 
-          stroke="#9CA3AF"
-        />
-        <Tooltip
-          cursor={{ fill: '#F3F4F6' }}
-          contentStyle={{ fontSize: "12px", borderRadius: "8px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
-          formatter={(value) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(value)}
-        />
-        <Bar dataKey="Income" fill="#22c55e" radius={[4, 4, 0, 0]} barSize={10} />
-        <Bar dataKey="Expense" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={10} />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-});
-ActivityChart.displayName = "ActivityChart";
-
-const SummaryCard = memo(({ summary, mostUrgentTask }) => (
-  <section className="bg-white p-4 lg:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-4 h-full">
-    <div>
-      <h3 className="text-base lg:text-lg font-semibold text-gray-900 mb-3">Task Summary</h3>
-      <div className="grid grid-cols-3 gap-2 lg:gap-3">
-        <div className="bg-gray-900 text-white p-3 rounded-xl flex flex-col items-center justify-center text-center gap-0.5">
-          <FiFileText size={14} className="text-gray-400 mb-1" />
-          <span className="text-[10px] text-gray-400 uppercase tracking-wider">Total</span>
-          <strong className="text-lg leading-none">{summary.total}</strong>
-        </div>
-        <div className="bg-yellow-500 text-white p-3 rounded-xl flex flex-col items-center justify-center text-center gap-0.5">
-          <FiCheckSquare size={14} className="text-white/80 mb-1" />
-          <span className="text-[10px] text-white/80 uppercase tracking-wider">Assigned</span>
-          <strong className="text-lg leading-none">{summary.assigned}</strong>
-        </div>
-        <div className="bg-gray-900 text-white p-3 rounded-xl flex flex-col items-center justify-center text-center gap-0.5">
-          <FiClock size={14} className="text-gray-400 mb-1" />
-          <span className="text-[10px] text-gray-400 uppercase tracking-wider">Closed</span>
-          <strong className="text-lg leading-none">{summary.closed}</strong>
-        </div>
-      </div>
-    </div>
-    <div className="border-t border-gray-100"></div>
-    <div className="flex-1 flex flex-col justify-end">
-      <div className="flex justify-between items-center mb-2">
-        <p className="text-sm font-semibold text-gray-700">
-          {mostUrgentTask ? "🔥 Top Priority" : "✨ Status"}
-        </p>
-        {summary.highPriority > 1 && (
-          <span className="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full font-medium border border-red-100">
-            +{summary.highPriority - 1} others
-          </span>
-        )}
-      </div>
-      {mostUrgentTask ? (
-        <div className="bg-red-50 border border-red-100 rounded-xl p-3 relative overflow-hidden group transition-all hover:border-red-200">
-          <div className="absolute top-0 right-0 p-2 opacity-10">
-            <FiAlertCircle size={40} className="text-red-600" />
-          </div>
-          <h4 className="text-gray-900 font-bold text-sm line-clamp-1 mb-1.5 relative z-10 pr-8" title={mostUrgentTask.title}>
-            {mostUrgentTask.title}
-          </h4>
-          <div className="flex items-center gap-2 text-xs text-red-600 relative z-10">
-            <span className="flex items-center gap-1 bg-white px-2 py-0.5 rounded-md shadow-sm border border-red-100 text-[10px]">
-              <FiCalendar size={10} />
-              {mostUrgentTask.date ? new Date(mostUrgentTask.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-'}
-            </span>
-            <span className="font-bold text-[10px] uppercase">Segera!</span>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-green-50 border border-green-100 rounded-xl p-3 flex items-center gap-3 text-green-700">
-          <div className="bg-white p-1.5 rounded-full shadow-sm text-green-600 border border-green-100">
-            <FiCheckSquare size={16} />
-          </div>
-          <div>
-            <p className="text-xs font-medium opacity-80">All Clear</p>
-            <p className="text-xs font-bold">No urgent tasks.</p>
-          </div>
-        </div>
-      )}
-    </div>
-  </section>
-));
-SummaryCard.displayName = "SummaryCard";
-
+// --- SUBCOMPONENTS FOR PAGE ---
 const RightSidebar = memo(() => {
-  const [notes, setNotes] = useState([]);
+  const [notes, setNotes] = useState<any[]>([]);
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = JSON.parse(localStorage.getItem("notes") || "[]");
@@ -251,51 +55,51 @@ const RightSidebar = memo(() => {
 });
 RightSidebar.displayName = "RightSidebar";
 
-// --------------------------------------------
-// MAIN CONTENT (LOGIC)
-// --------------------------------------------
 const MainContent = memo(() => {
-  const [recentTasks, setRecentTasks] = useState([]);
-  const [chartData, setChartData] = useState([]);
-  const [mostUrgentTask, setMostUrgentTask] = useState(null);
-  const [summary, setSummary] = useState({
+  const [recentTasks, setRecentTasks] = useState<Task[]>([]);
+  const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [mostUrgentTask, setMostUrgentTask] = useState<Task | null>(null);
+  const [summary, setSummary] = useState<DashboardSummary>({
     total: 0, assigned: 0, closed: 0, highPriority: 0,
   });
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const savedTasks = JSON.parse(localStorage.getItem("allTasks") || "[]");
+      // Load Tasks
+      const savedTasks: Task[] = JSON.parse(localStorage.getItem("allTasks") || "[]");
       const total = savedTasks.length;
       const assigned = savedTasks.filter((t) => !t.completed).length;
       const closed = savedTasks.filter((t) => t.completed).length;
       const highPriorityTasks = savedTasks.filter((t) => !t.completed && t.priority === "High");
       
-      highPriorityTasks.sort((a, b) => new Date(a.date) - new Date(b.date));
+      highPriorityTasks.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       
       setSummary({ total, assigned, closed, highPriority: highPriorityTasks.length });
       setMostUrgentTask(highPriorityTasks.length > 0 ? highPriorityTasks[0] : null);
 
       const pendingTasks = savedTasks.filter((t) => !t.completed);
-      pendingTasks.sort((a, b) => priorityValues[b.priority] - priorityValues[a.priority]);
+      pendingTasks.sort((a, b) => (priorityValues[b.priority] || 0) - (priorityValues[a.priority] || 0));
       setRecentTasks(pendingTasks.slice(0, 3));
 
-      const savedTransactions = JSON.parse(localStorage.getItem("transactions") || "[]");
+      // Load Transactions for Chart
+      const savedTransactions: Transaction[] = JSON.parse(localStorage.getItem("transactions") || "[]");
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const dayFormatter = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short" });
 
-      const tempData = [];
+      const tempData: ChartData[] = [];
       for (let i = 6; i >= 0; i--) {
         const d = new Date(today);
         d.setDate(today.getDate() - i);
         tempData.push({ name: dayFormatter.format(d), dateObj: d, Income: 0, Expense: 0 });
       }
 
-      const sevenAgo = tempData[0].dateObj;
+      const sevenAgo = tempData[0].dateObj as Date;
       savedTransactions.forEach(tx => {
         const txDate = new Date(tx.date); 
         if (txDate >= sevenAgo) {
            const match = tempData.find(c => 
+             c.dateObj && 
              c.dateObj.getDate() === txDate.getDate() && 
              c.dateObj.getMonth() === txDate.getMonth()
            );
@@ -305,6 +109,7 @@ const MainContent = memo(() => {
            }
         }
       });
+      // Remove dateObj before setting state to avoid potential serialization issues
       setChartData(tempData.map(({ dateObj, ...rest }) => rest));
     }
   }, []);
@@ -318,7 +123,13 @@ const MainContent = memo(() => {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 lg:gap-4">
           {recentTasks.length > 0 ? (
             recentTasks.map((task) => (
-              <ProjectCard key={task.id} title={task.title} dueDate={task.date} priority={task.priority} startDate={task.id} />
+              <ProjectCard 
+                key={task.id} 
+                title={task.title} 
+                dueDate={task.date} 
+                priority={task.priority} 
+                startDate={String(task.id)} // Convert ID to string if needed for startDate logic
+              />
             ))
           ) : (
             <div className="col-span-full bg-white p-6 rounded-2xl border border-gray-100 text-center text-gray-500 text-sm">
@@ -347,9 +158,6 @@ const MainContent = memo(() => {
 });
 MainContent.displayName = "MainContent";
 
-// --------------------------------------------
-// DASHBOARD LAYOUT WRAPPER
-// --------------------------------------------
 const DashboardLayout = memo(() => {
   return (
     <div className="flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_300px] gap-3 lg:gap-6">
@@ -360,9 +168,7 @@ const DashboardLayout = memo(() => {
 });
 DashboardLayout.displayName = "DashboardLayout";
 
-// --------------------------------------------
-// MAIN EXPORT COMPONENT
-// --------------------------------------------
+// --- MAIN EXPORT COMPONENT ---
 export default function FinanceDashboard() {
   const [isMobileCalendarOpen, setMobileCalendarOpen] = useState(false);
 
@@ -379,7 +185,6 @@ export default function FinanceDashboard() {
                 <p className="text-xs text-gray-500">Manage and track all your tasks</p>
               </div>
               
-              {/* TOMBOL KALENDER (EFEK MORPHING) */}
               <motion.button
                 layoutId="dashboard-calendar-trigger"
                 onClick={() => setMobileCalendarOpen(true)}
@@ -391,7 +196,6 @@ export default function FinanceDashboard() {
               </motion.button>
             </div>
 
-            {/* MAIN CONTENT */}
             <DashboardLayout />
             
           </div>
@@ -403,7 +207,6 @@ export default function FinanceDashboard() {
         {isMobileCalendarOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:hidden">
             
-            {/* Backdrop */}
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
@@ -413,7 +216,6 @@ export default function FinanceDashboard() {
               onClick={() => setMobileCalendarOpen(false)}
             />
 
-            {/* Modal Content */}
             <motion.div 
               layoutId="dashboard-calendar-trigger" 
               className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden relative z-10"
@@ -435,7 +237,7 @@ export default function FinanceDashboard() {
           </div>
         )}
       </AnimatePresence>
-      
+        
       <style jsx global>{`
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

@@ -4,8 +4,29 @@ import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { motion } from "framer-motion";
 
-export default function TaskModal({ task, onSave, onClose, layoutId }) {
-  const [formData, setFormData] = useState({
+// 1. Definisikan Tipe Data Task
+// Gunakan export agar bisa di-import di page.tsx jika perlu, meski page.tsx punya definisinya sendiri
+export interface TaskData {
+  id?: number | string; // Optional karena task baru belum punya ID
+  title: string;
+  description?: string; // Optional agar tidak error jika undefined
+  priority: string;
+  category: string;
+  date: string;
+  completed?: boolean;
+}
+
+// 2. Definisikan Interface Props
+interface TaskModalProps {
+  task: TaskData | null; // Bisa null jika mode create
+  onSave: (task: TaskData) => void;
+  onClose: () => void;
+  layoutId?: string | null;
+}
+
+export default function TaskModal({ task, onSave, onClose, layoutId }: TaskModalProps) {
+  // State awal form
+  const [formData, setFormData] = useState<TaskData>({
     title: "",
     description: "",
     priority: "Medium",
@@ -13,10 +34,15 @@ export default function TaskModal({ task, onSave, onClose, layoutId }) {
     date: "",
   });
 
+  // Update form saat prop task berubah
   useEffect(() => {
     if (task) {
-      setFormData(task);
+      setFormData({
+        ...task,
+        description: task.description || "", // Pastikan description string kosong jika undefined
+      });
     } else {
+      // Reset form jika task null (mode create)
       setFormData({
         title: "",
         description: "",
@@ -27,7 +53,7 @@ export default function TaskModal({ task, onSave, onClose, layoutId }) {
     }
   }, [task]);
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -35,7 +61,7 @@ export default function TaskModal({ task, onSave, onClose, layoutId }) {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
   };
@@ -59,7 +85,7 @@ export default function TaskModal({ task, onSave, onClose, layoutId }) {
 
       {/* MODAL CARD */}
       <motion.div 
-        layoutId={layoutId} // Magic Motion ID
+        layoutId={layoutId || undefined} // Magic Motion ID
         initial={!layoutId ? { opacity: 0, scale: 0.9 } : undefined}
         animate={!layoutId ? { opacity: 1, scale: 1 } : undefined}
         exit={!layoutId ? { opacity: 0, scale: 0.9 } : undefined}
@@ -98,7 +124,6 @@ export default function TaskModal({ task, onSave, onClose, layoutId }) {
               onChange={handleChange}
               placeholder="What needs to be done?"
               className={inputStyle}
-              // UBAHAN: autoFocus dihapus biar keyboard gak loncat di HP
             />
           </div>
 
@@ -107,7 +132,7 @@ export default function TaskModal({ task, onSave, onClose, layoutId }) {
             <label className={labelStyle}>Description</label>
             <textarea
               name="description"
-              value={formData.description}
+              value={formData.description || ""} // Fallback ke string kosong
               onChange={handleChange}
               placeholder="Add details (optional)..."
               className={`${inputStyle} min-h-[100px] resize-none`}
