@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, Variants } from "framer-motion";
 
 // --- Components Imports ---
 import CalendarWidget from "@/components/CalendarWidget";
@@ -20,25 +20,25 @@ import { IconCalendarInternal } from "@/components/dashboard/event/EventIcons";
 // IMPORT TIPE DATA SHARED (Hapus interface lokal)
 import { EventData, ActivityLog } from "@/lib/types";
 
-// --- ANIMATION VARIANTS ---
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.15, // Jeda waktu antar elemen
+      staggerChildren: 0.15,
       delayChildren: 0.1
     }
   }
 };
 
-const itemVariants = {
+// 3. Dan tambahkan tipe ': Variants' disini juga
+const itemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: { 
     opacity: 1, 
     y: 0,
     transition: {
-      type: "spring",
+      type: "spring", // TypeScript sekarang akan tahu ini valid
       stiffness: 50,
       damping: 15
     }

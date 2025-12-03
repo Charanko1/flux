@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, memo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import { FiCalendar, FiX } from "react-icons/fi";
 import { Loader2 } from "lucide-react"; // Import icon loading
 
@@ -19,25 +19,25 @@ import { Task, Transaction, DashboardSummary, ChartData } from "@/components/das
 
 const priorityValues: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
 
-// --- ANIMATION VARIANTS (OPTIMIZED) ---
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1, // Jeda dipercepat
+      staggerChildren: 0.1,
       delayChildren: 0.05
     }
   }
 };
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 10 }, // Jarak gerak dikurangi biar enteng
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 10 },
   visible: { 
     opacity: 1, 
     y: 0,
     transition: {
-      type: "tween", // Ganti spring ke tween (linear/easeOut) lebih ringan
+      type: "tween", // Error hilang, TypeScript sekarang tahu ini valid
       ease: "easeOut",
       duration: 0.3
     }

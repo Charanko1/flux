@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { FiFilter, FiPlus } from "react-icons/fi";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, Variants } from "framer-motion";
 
 // Components Imports
 import TaskModal, { TaskData } from '@/components/dashboard/task/TaskModal';
@@ -29,8 +29,12 @@ const priorityValues: Record<string, number> = {
   Low: 1
 };
 
+// ... (Kode lain tetap sama) ...
+
 // --- ANIMATION VARIANTS ---
-const containerVariants = {
+
+// 2. Tambahkan ': Variants' di sini
+const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
@@ -41,13 +45,14 @@ const containerVariants = {
   }
 };
 
-const itemVariants = {
+// 3. Tambahkan ': Variants' di sini juga
+const itemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: { 
     opacity: 1, 
     y: 0,
     transition: {
-      type: "spring",
+      type: "spring", // Sekarang error akan hilang
       stiffness: 50,
       damping: 15
     }

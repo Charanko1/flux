@@ -23,7 +23,7 @@ import {
   ArrowDownCircle,
   Loader2, // Icon loading
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion"; 
 import { parseDateIDN } from "@/lib/utils";
 import { TransactionData } from "./AddTransaction"; 
 
@@ -47,21 +47,21 @@ const renderCustomizedLabel = (props: any) => {
   );
 };
 
-// ... (ANIMATION VARIANTS TETAP SAMA) ...
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.1, delayChildren: 0.05 } // Dipercepat sedikit
+    transition: { staggerChildren: 0.1, delayChildren: 0.05 } 
   }
 };
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 10 }, // Jarak gerak dikurangi biar lebih ringan
+// 3. Tambahkan ': Variants' disini juga
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 10 }, 
   visible: { 
     opacity: 1, 
     y: 0,
-    transition: { type: "tween", ease: "easeOut", duration: 0.3 } // Ganti spring ke tween biar lebih ringan render-nya
+    transition: { type: "tween", ease: "easeOut", duration: 0.3 } // Error hilang!
   }
 };
 
