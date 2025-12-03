@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 
 // --- Components Imports ---
 import CalendarWidget from "@/components/CalendarWidget";
@@ -19,6 +19,31 @@ import { IconCalendarInternal } from "@/components/dashboard/event/EventIcons";
 
 // IMPORT TIPE DATA SHARED (Hapus interface lokal)
 import { EventData, ActivityLog } from "@/lib/types";
+
+// --- ANIMATION VARIANTS ---
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.15, // Jeda waktu antar elemen
+      delayChildren: 0.1
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: {
+      type: "spring",
+      stiffness: 50,
+      damping: 15
+    }
+  }
+};
 
 export default function EventPage() {
   // --- STATE & NORMALISASI DATA ---
@@ -124,19 +149,34 @@ export default function EventPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans flex flex-col">
-      <main className="flex-1 p-3 md:p-6">
+      {/* ANIMASI UTAMA: 
+         Menggunakan motion.main sebagai container untuk mengatur stagger children
+      */}
+      <motion.main 
+        className="flex-1 p-3 md:p-6"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
         
-        {/* HEADER */}
-        <EventHeader 
-          onOpenMobileCalendar={() => setIsMobileCalendarOpen(true)}
-          onOpenCreate={openModalForCreate}
-        />
+        {/* ITEM 1: HEADER */}
+        <motion.div variants={itemVariants}>
+            <EventHeader 
+              onOpenMobileCalendar={() => setIsMobileCalendarOpen(true)}
+              onOpenCreate={openModalForCreate}
+            />
+        </motion.div>
 
-        {/* STATS */}
-        <StatsSection events={events} />
+        {/* ITEM 2: STATS */}
+        <motion.div variants={itemVariants}>
+            <StatsSection events={events} />
+        </motion.div>
 
-        {/* LAYOUT UTAMA */}
-        <div className="flex flex-col lg:flex-row mt-3 lg:mt-6 gap-3 lg:gap-6">
+        {/* ITEM 3: LAYOUT UTAMA (List & Sidebar) */}
+        <motion.div 
+            variants={itemVariants} 
+            className="flex flex-col lg:flex-row mt-3 lg:mt-6 gap-3 lg:gap-6"
+        >
           <div className="flex-1">
             
             {/* CONTROLS (SEARCH & FILTER) */}
@@ -196,8 +236,8 @@ export default function EventPage() {
                 </div>
             </div>
           </aside>
-        </div>
-      </main>
+        </motion.div>
+      </motion.main>
 
       {/* MODAL EVENT UTAMA */}
       <AnimatePresence>

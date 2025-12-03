@@ -1,10 +1,10 @@
 "use client";
+
 import React, { useState, useMemo, useEffect } from "react";
 import { FiFilter, FiPlus } from "react-icons/fi";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 
 // Components Imports
-// IMPORT PENTING: Ambil juga TaskData dari modal
 import TaskModal, { TaskData } from '@/components/dashboard/task/TaskModal';
 import StatCard from '@/components/dashboard/task/StatCard';
 import TaskItem from '@/components/dashboard/task/TaskItem';
@@ -12,7 +12,6 @@ import FilterButton from '@/components/dashboard/task/FilterButton';
 import TaskHeader from '@/components/dashboard/task/TaskHeader';
 
 // --- 1. DEFINISI TIPE DATA (INTERFACE) ---
-// Sesuaikan dengan TaskData tapi id wajib ada di sini
 export interface Task {
   id: number | string;
   title: string;
@@ -20,7 +19,7 @@ export interface Task {
   completed: boolean;
   date: string;
   category: string;
-  description?: string; // Tambahkan ini biar sinkron
+  description?: string;
 }
 
 // --- HELPER OBJECT ---
@@ -28,6 +27,31 @@ const priorityValues: Record<string, number> = {
   High: 3,
   Medium: 2,
   Low: 1
+};
+
+// --- ANIMATION VARIANTS ---
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.1
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: {
+      type: "spring",
+      stiffness: 50,
+      damping: 15
+    }
+  }
 };
 
 export default function TasksPage() {
@@ -66,14 +90,12 @@ export default function TasksPage() {
     );
   };
 
-  // PERBAIKAN UTAMA: Gunakan TaskData untuk parameter
   const handleSaveTask = (taskData: TaskData) => {
     if (selectedTask) {
       // Logic Edit
       setTasks((prev) =>
         prev.map((t) => {
             if (t.id === selectedTask.id) {
-                // Pastikan properti id & completed tetap terjaga
                 return { 
                     ...t, 
                     ...taskData, 
@@ -86,14 +108,13 @@ export default function TasksPage() {
       );
     } else {
       // Logic Add Baru
-      // Kita manual bikin object Task baru lengkap dengan ID
       const newTask: Task = {
           title: taskData.title,
           priority: taskData.priority,
           category: taskData.category,
           date: taskData.date,
           description: taskData.description || "", 
-          id: Date.now(), // Generate ID di sini
+          id: Date.now(),
           completed: false
       };
       setTasks((prev) => [...prev, newTask]);
@@ -144,24 +165,47 @@ export default function TasksPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#F9FAFB] hide-scrollbar">
-      <div className="p-3 md:p-6 space-y-2 md:space-y-4 bg-[#F9FAFB] min-h-screen">
+    // PERBAIKAN 1: Hapus h-screen dan overflow-hidden di sini. Gunakan w-full saja.
+    <div className="flex flex-col w-full bg-[#F9FAFB]">
+      
+      {/* PERBAIKAN 2: 
+          - Hapus 'overflow-y-auto' (biarkan Layout yang handle scroll)
+          - Hapus 'min-h-screen' (biarkan konten menentukan tinggi)
+          - Gunakan 'min-h-full' agar background tetap penuh jika konten sedikit
+      */}
+      <motion.div 
+        className="p-3 md:p-6 space-y-2 md:space-y-4 bg-[#F9FAFB] min-h-full"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
         
-        <TaskHeader onOpenCreate={openModalForCreate} />
+        {/* ANIMASI ITEM 1: HEADER */}
+        <motion.div variants={itemVariants}>
+          <TaskHeader onOpenCreate={openModalForCreate} />
+        </motion.div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+        {/* ANIMASI ITEM 2: STAT CARDS */}
+        <motion.div 
+          className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3"
+          variants={itemVariants}
+        >
           <StatCard title="Total Tasks" value={stats.total} />
           <StatCard title="Completed" value={stats.completed} />
           <StatCard title="Pending" value={stats.pending} />
           <StatCard title="High Priority" value={stats.highPriority} />
-        </div>
+        </motion.div>
 
-        <div className="bg-white border border-[#E5E7EB] rounded-xl p-3 md:p-5 shadow-sm">
+        {/* ANIMASI ITEM 3: MAIN LIST CARD */}
+        <motion.div 
+          className="bg-white border border-[#E5E7EB] rounded-xl p-3 md:p-5 shadow-sm"
+          variants={itemVariants}
+        >
           
           <input
             type="text"
             placeholder="Search tasks..."
-            className="w-full px-3 py-2 rounded-lg mb-2 bg-[#F3F4F6] outline-none text-gray-900 text-sm focus:ring-2 focus:ring-[#FBBF24]/50"
+            className="w-full px-3 py-2 rounded-lg mb-2 bg-[#F3F4F6] outline-none text-gray-900 text-sm focus:ring-2 focus:ring-[#FBBF24]/50 transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -206,8 +250,14 @@ export default function TasksPage() {
               />
             )}
           </AnimatePresence>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
+
+      {/* Style Global untuk scrollbar */}
+      <style jsx global>{`
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
     </div>
   );
 }

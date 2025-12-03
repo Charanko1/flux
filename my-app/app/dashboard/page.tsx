@@ -3,6 +3,7 @@
 import React, { useState, useEffect, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiCalendar, FiX } from "react-icons/fi";
+import { Loader2 } from "lucide-react"; // Import icon loading
 
 // IMPORT COMPONENTS KITA (Sesuaikan path)
 import CalendarWidget from "@/components/CalendarWidget";
@@ -18,6 +19,31 @@ import { Task, Transaction, DashboardSummary, ChartData } from "@/components/das
 
 const priorityValues: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
 
+// --- ANIMATION VARIANTS (OPTIMIZED) ---
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1, // Jeda dipercepat
+      delayChildren: 0.05
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 }, // Jarak gerak dikurangi biar enteng
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: {
+      type: "tween", // Ganti spring ke tween (linear/easeOut) lebih ringan
+      ease: "easeOut",
+      duration: 0.3
+    }
+  }
+};
+
 // --- SUBCOMPONENTS FOR PAGE ---
 const RightSidebar = memo(() => {
   const [notes, setNotes] = useState<any[]>([]);
@@ -30,7 +56,12 @@ const RightSidebar = memo(() => {
   }, []);
 
   return (
-    <aside className="flex flex-col gap-3 lg:gap-6 min-h-0">
+    <motion.aside 
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }} // Durasi dikurangi
+      className="flex flex-col gap-3 lg:gap-6 min-h-0"
+    >
       <div className="hidden lg:block"><CalendarWidget /></div>
       <section className="bg-white p-4 lg:p-5 rounded-2xl border border-gray-100 shadow-sm">
         <div className="flex justify-between items-center mb-4"><h3 className="font-semibold text-gray-800 text-sm lg:text-base">Notes</h3></div>
@@ -50,7 +81,7 @@ const RightSidebar = memo(() => {
         )}
         <a href="/dashboard/notes" className="text-xs text-blue-600 font-medium mt-4 inline-block hover:underline">View All Notes</a>
       </section>
-    </aside>
+    </motion.aside>
   );
 });
 RightSidebar.displayName = "RightSidebar";
@@ -62,6 +93,17 @@ const MainContent = memo(() => {
   const [summary, setSummary] = useState<DashboardSummary>({
     total: 0, assigned: 0, closed: 0, highPriority: 0,
   });
+
+  // OPTIMASI: State untuk Lazy Load Chart
+  const [isChartReady, setIsChartReady] = useState(false);
+
+  useEffect(() => {
+    // Tunggu 400ms agar animasi halaman selesai dulu
+    const timer = setTimeout(() => {
+      setIsChartReady(true);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -109,18 +151,23 @@ const MainContent = memo(() => {
            }
         }
       });
-      // Remove dateObj before setting state to avoid potential serialization issues
       setChartData(tempData.map(({ dateObj, ...rest }) => rest));
     }
   }, []);
 
   return (
-    <main className="flex flex-col gap-3 lg:gap-6 min-h-0">
-      <section>
+    <motion.main 
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="flex flex-col gap-3 lg:gap-6 min-h-0"
+    >
+      {/* ITEM 1: Recent Tasks */}
+      <motion.section variants={itemVariants}>
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-base lg:text-lg font-semibold text-gray-800">Recent Tasks</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 lg:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-4">
           {recentTasks.length > 0 ? (
             recentTasks.map((task) => (
               <ProjectCard 
@@ -128,7 +175,7 @@ const MainContent = memo(() => {
                 title={task.title} 
                 dueDate={task.date} 
                 priority={task.priority} 
-                startDate={String(task.id)} // Convert ID to string if needed for startDate logic
+                startDate={String(task.id)} 
               />
             ))
           ) : (
@@ -137,9 +184,10 @@ const MainContent = memo(() => {
             </div>
           )}
         </div>
-      </section>
+      </motion.section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-6">
+      {/* ITEM 2: Activity & Summary */}
+      <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-6">
         <section className="bg-white p-4 lg:p-6 rounded-2xl border border-gray-100 shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-base lg:text-lg font-semibold text-gray-800">Activity</h3>
@@ -148,12 +196,20 @@ const MainContent = memo(() => {
             </span>
           </div>
           <div className="h-[200px] md:h-[220px] w-full">
-             <ActivityChart data={chartData} />
+             {/* OPTIMASI: Tampilkan Chart hanya jika isChartReady = true */}
+             {isChartReady ? (
+                <ActivityChart data={chartData} />
+             ) : (
+                /* Skeleton Loading Sederhana */
+                <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded-lg animate-pulse">
+                   <Loader2 className="w-6 h-6 text-gray-300 animate-spin" />
+                </div>
+             )}
           </div>
         </section>
         <SummaryCard summary={summary} mostUrgentTask={mostUrgentTask} />
-      </div>
-    </main>
+      </motion.div>
+    </motion.main>
   );
 });
 MainContent.displayName = "MainContent";
@@ -179,7 +235,12 @@ export default function FinanceDashboard() {
           <div className="p-3 md:p-6 pb-32 min-h-full">
             
             {/* Mobile Header */}
-            <div className="flex justify-between items-start mb-4 lg:hidden">
+            <motion.div 
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }} // Sedikit dipercepat
+              className="flex justify-between items-start mb-4 lg:hidden"
+            >
               <div>
                 <h2 className="text-xl font-bold text-gray-800">Dashboard</h2>
                 <p className="text-xs text-gray-500">Manage and track all your tasks</p>
@@ -194,7 +255,7 @@ export default function FinanceDashboard() {
               >
                 <FiCalendar size={18} />
               </motion.button>
-            </div>
+            </motion.div>
 
             <DashboardLayout />
             
