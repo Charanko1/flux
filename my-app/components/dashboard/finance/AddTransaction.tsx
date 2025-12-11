@@ -1,60 +1,73 @@
-"use client";
-
 import React, { useState } from 'react';
-import { ArrowLeft, Plus, ArrowDownCircle } from 'lucide-react';
+import { ArrowLeft, Plus, ArrowDownCircle, Loader2 } from 'lucide-react';
 
-// 1. TAMBAHKAN 'export' DI SINI
+// Pastikan interface ini diexport agar bisa dipakai di tempat lain jika perlu
 export interface TransactionData {
   id: number | string;
-  type: 'income' | 'expense'; // Kita kunci tipenya biar ga error di tempat lain
+  type: 'income' | 'expense';
   title: string;
   category: string;
   amount: number;
-  date: string;
+  date: string; // Kita kirim format YYYY-MM-DD ke backend
 }
 
 interface AddTransactionPageProps {
   onBack: () => void;
-  onSaveTransaction: (transaction: TransactionData) => void;
+  // Kita ubah jadi Promise agar bisa menampilkan Loading saat Bapaknya menyimpan data
+  onSaveTransaction: (transaction: TransactionData) => Promise<void>; 
 }
 
 export default function AddTransactionPage({ onBack, onSaveTransaction }: AddTransactionPageProps) {
-  // State harus sesuai tipe literal 'income' | 'expense'
   const [type, setType] = useState<'income' | 'expense'>('income');
   const [category, setCategory] = useState('');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]); // YYYY-MM-DD
+  
+  // State untuk Loading saat tombol ditekan
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleTypeChange = (newType: 'income' | 'expense') => {
     setType(newType);
     setCategory('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const dateObj = new Date(date + 'T00:00:00');
     
-    const formattedDate = dateObj.toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
+    // Cegah double submit
+    if (isSubmitting) return;
+
+    setIsSubmitting(true); // Mulai Loading
 
     const sanitizedAmount = amount.replace(/\./g, '');
     const numericAmount = parseFloat(sanitizedAmount);
+    
+    // Validasi sederhana
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+        alert("Mohon masukkan jumlah uang yang valid.");
+        setIsSubmitting(false);
+        return;
+    }
+
+    // Tentukan positif/negatif berdasarkan tipe
     const finalAmount = type === 'expense' ? -Math.abs(numericAmount) : Math.abs(numericAmount);
 
     const newTransaction: TransactionData = {
-      id: Date.now(),
+      id: Date.now(), // ID sementara (nanti diganti Backend)
       type,
       title: description || (type === 'income' ? 'New Income' : 'New Expense'),
       category: category || 'Others',
       amount: finalAmount,
-      date: formattedDate
+      date: date // KIRIM YYYY-MM-DD (Jangan diformat jadi 'Dec', nanti database bingung)
     };
 
-    onSaveTransaction(newTransaction);
+    // Panggil fungsi milik Bapak (FinancePage) dan tunggu sampai selesai
+    await onSaveTransaction(newTransaction);
+    
+    // Loading dimatikan oleh unmount component (karena pindah halaman), 
+    // tapi aman jika kita set false di sini jaga-jaga.
+    setIsSubmitting(false); 
   };
 
   return (
@@ -63,7 +76,8 @@ export default function AddTransactionPage({ onBack, onSaveTransaction }: AddTra
       {/* TOMBOL KEMBALI */}
       <button
         onClick={onBack}
-        className="flex items-center gap-2 text-xs md:text-sm font-medium text-gray-600 hover:text-gray-900 mb-4 md:mb-6 transition-colors"
+        disabled={isSubmitting}
+        className="flex items-center gap-2 text-xs md:text-sm font-medium text-gray-600 hover:text-gray-900 mb-4 md:mb-6 transition-colors disabled:opacity-50"
       >
         <ArrowLeft className="h-4 w-4 md:h-5 md:w-5" />
         Back
@@ -138,7 +152,6 @@ export default function AddTransactionPage({ onBack, onSaveTransaction }: AddTra
                   </>
                 )}
               </select>
-              {/* Custom Arrow for Select */}
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
                 <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
               </div>
@@ -191,10 +204,20 @@ export default function AddTransactionPage({ onBack, onSaveTransaction }: AddTra
           {/* SUBMIT BUTTON */}
           <button
             type="submit"
-            className="w-full bg-yellow-500 text-white rounded-lg px-4 py-2.5 md:py-3 text-sm md:text-base font-medium hover:bg-yellow-600 active:bg-yellow-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
+            disabled={isSubmitting}
+            className="w-full bg-yellow-500 text-white rounded-lg px-4 py-2.5 md:py-3 text-sm md:text-base font-medium hover:bg-yellow-600 active:bg-yellow-700 transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            <Plus className="h-4 w-4 md:h-5 md:w-5" />
-            Save Transaction
+            {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 md:h-5 md:w-5 animate-spin" />
+                  Saving...
+                </>
+            ) : (
+                <>
+                  <Plus className="h-4 w-4 md:h-5 md:w-5" />
+                  Save Transaction
+                </>
+            )}
           </button>
           
         </form>

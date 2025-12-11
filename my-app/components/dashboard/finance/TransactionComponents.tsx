@@ -1,9 +1,19 @@
 import React from 'react';
 import { ArrowUpRight, ArrowDownLeft, ChevronDown } from 'lucide-react';
-import { Transaction } from "./types";
-import { formatCurrencyHistory } from "./TransactionHelpers";
+// Pastikan path ini benar atau definisikan Transaction di file ini langsung jika perlu
+import { formatCurrencyHistory } from "./TransactionHelpers"; 
 
-// --- STATS CARD ---
+// --- DEFINISI TIPE DATA (Biar aman & tidak perlu import) ---
+export interface Transaction {
+  id: string | number;
+  title: string;
+  amount: number;
+  category: string;
+  date: string;
+  type: 'income' | 'expense'; // <-- INI KUNCI UTAMANYA
+}
+
+// --- STATS CARD (Tidak ada perubahan, sudah oke) ---
 interface HistoryStatsCardProps {
   title: string;
   amount: string;
@@ -32,15 +42,18 @@ export const HistoryStatsCard: React.FC<HistoryStatsCardProps> = ({
   </div>
 );
 
-// --- TRANSACTION ITEM ---
+// --- TRANSACTION ITEM (PERBAIKAN LOGIC DI SINI) ---
 interface HistoryTransactionItemProps {
   transaction: Transaction;
 }
 
 export const HistoryTransactionItem: React.FC<HistoryTransactionItemProps> = ({ transaction }) => {
-  const isIncome = transaction.amount >= 0;
+  // 🔴 PERBAIKAN: Cek tipe dari field 'type', bukan dari minus/plus amount
+  const isIncome = transaction.type === 'income';
+  
   const amountColor = isIncome ? 'text-green-600' : 'text-red-600';
   const amountPrefix = isIncome ? '+Rp' : '-Rp';
+  
   const Icon = isIncome ? ArrowUpRight : ArrowDownLeft;
   const iconBg = isIncome ? 'bg-green-100' : 'bg-red-100';
   const iconColor = isIncome ? 'text-green-600' : 'text-red-600';
@@ -63,13 +76,14 @@ export const HistoryTransactionItem: React.FC<HistoryTransactionItemProps> = ({ 
       </div>
       
       <span className={`text-sm md:text-base font-semibold whitespace-nowrap ${amountColor}`}>
+        {/* Pastikan formatCurrencyHistory hanya memformat angka, prefix diurus amountPrefix */}
         {amountPrefix} {formatCurrencyHistory(transaction.amount)}
       </span>
     </div>
   );
 };
 
-// --- FILTER DROPDOWN ---
+// --- FILTER DROPDOWN (Sudah oke) ---
 interface FilterOption {
   value: string;
   label: string;

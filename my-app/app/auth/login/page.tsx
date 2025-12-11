@@ -80,11 +80,21 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, rememberMe }),
+        // rememberMe sudah didukung backend kita
+        body: JSON.stringify({ ...form, rememberMe }), 
       });
+
       const data = await res.json();
-      if (res.ok) await login(data.token, data.user);
-      else setError(data.message || "Login gagal.");
+
+      if (res.ok) {
+        // PERUBAHAN DISINI: 
+        // Kita tidak butuh data.token, karena token sudah di-set di Cookie browser.
+        // Cukup update state user dan redirect.
+        await login(data.user); 
+        router.push("/dashboard"); // Redirect ke dashboard finance
+      } else {
+        setError(data.message || "Login gagal.");
+      }
     } catch {
       setError("Terjadi kesalahan server.");
     }
