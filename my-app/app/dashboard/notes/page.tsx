@@ -144,15 +144,15 @@ export default function NotesPage() {
           </div>
         ) : notes.length === 0 ? (
           <div className="text-center text-gray-500 mt-24 animate-in fade-in duration-500">
-            <p>Belum ada catatan.</p>
-            <p>Klik "Add Note" untuk membuat catatan baru.</p>
+            <p>No records yet.</p>
+            <p>Click “Add Note” to create a new note.</p>
           </div>
         ) : filteredNotes.length === 0 ? (
           <div className="text-center text-gray-500 mt-24 animate-in fade-in duration-500">
              <div className="inline-block p-3 bg-gray-100 rounded-full mb-3">
                 <FiSearch size={24} className="text-gray-400" />
              </div>
-            <p>Tidak ditemukan catatan dengan kata kunci <strong>"{searchQuery}"</strong></p>
+            <p>No results found.<strong>"{searchQuery}"</strong></p>
             <button onClick={() => setSearchQuery("")} className="text-amber-600 hover:underline mt-2 text-sm">
               Bersihkan pencarian
             </button>

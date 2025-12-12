@@ -7,8 +7,10 @@ import { motion, AnimatePresence, Variants } from "framer-motion";
 import { FiCalendar, FiX } from "react-icons/fi";
 import { Loader2 } from "lucide-react";
 
+// --- IMPORT HELPER TANGGAL (PENTING!) ---
+import { parseDateIDN } from "@/lib/utils";
+
 // --- IMPORT KOMPONEN KITA ---
-// Pastikan file-file ini sudah ada sesuai panduan sebelumnya
 import CalendarWidget from "@/components/CalendarWidget";
 import { 
   ProjectCard, 
@@ -91,10 +93,8 @@ const RightSidebar = memo(() => {
 RightSidebar.displayName = "RightSidebar";
 
 // ============================================================================
-// 2. KOMPONEN: MAIN CONTENT (Chart & Task)
+// 2. KOMPONEN: MAIN CONTENT (Chart & Task) - UPDATED LOGIC (FIX CHART BUG)
 // ============================================================================
-// --- GANTI BAGIAN MainContent DI app/page.tsx DENGAN INI ---
-
 const MainContent = memo(() => {
   const [recentTasks, setRecentTasks] = useState<Task[]>([]);
   const [chartData, setChartData] = useState<ChartData[]>([]);
@@ -116,77 +116,73 @@ const MainContent = memo(() => {
 
       // 1. LOAD TASKS (LocalStorage)
       const savedTasks: Task[] = JSON.parse(localStorage.getItem("allTasks") || "[]");
-      // ... (Logic task summary tetap sama) ...
       const total = savedTasks.length;
       const assigned = savedTasks.filter((t) => !t.completed).length;
       const closed = savedTasks.filter((t) => t.completed).length;
       const highPriorityTasks = savedTasks.filter((t) => !t.completed && t.priority === "High");
+      
       highPriorityTasks.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      
       setSummary({ total, assigned, closed, highPriority: highPriorityTasks.length });
       setMostUrgentTask(highPriorityTasks.length > 0 ? highPriorityTasks[0] : null);
+
       const pendingTasks = savedTasks.filter((t) => !t.completed);
       pendingTasks.sort((a, b) => (priorityValues[b.priority] || 0) - (priorityValues[a.priority] || 0));
       setRecentTasks(pendingTasks.slice(0, 3));
 
-      // 2. LOAD FINANCE (API Database) - VERSI DEBUG
+      // 2. LOAD FINANCE (API Database) - FIX CHART LOGIC
       try {
-        console.log("🚀 [Dashboard] Fetching finance data...");
         const res = await fetch('/api/dashboard/finance');
         
         if (res.ok) {
           const dbTransactions = await res.json();
-          console.log("📦 [Dashboard] Data diterima:", dbTransactions);
-
-          // Buat array 7 hari terakhir (Format String YYYY-MM-DD)
-          // Ini lebih aman daripada Date Object karena menghindari masalah jam/timezone
-          const chartMap: Record<string, { name: string, Income: number, Expense: number }> = {};
           
+          // --- LOGIC CHART: STRING MATCHING (ANTI-TIMEZONE BUG) ---
           const today = new Date();
-          const dayFormatter = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short" }); // "12 Dec"
+          today.setHours(0, 0, 0, 0); // Reset jam
+          
+          const dayFormatter = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short" });
 
-          // Loop 7 hari ke belakang
+          const tempData: ChartData[] = [];
+          
+          // A. Buat Kerangka 7 Hari Terakhir
           for (let i = 6; i >= 0; i--) {
-            const d = new Date();
+            const d = new Date(today);
             d.setDate(today.getDate() - i);
-            const isoDate = d.toISOString().split('T')[0]; // "2025-12-12"
-            chartMap[isoDate] = { 
+            tempData.push({ 
               name: dayFormatter.format(d), 
+              dateObj: d, 
               Income: 0, 
               Expense: 0 
-            };
+            });
           }
 
-          // Masukkan Data Transaksi ke Chart Map
+          // B. Isi Data (Gunakan .toDateString() untuk mengabaikan jam)
           dbTransactions.forEach((tx: any) => {
-             // Ambil tanggal saja "2025-12-12" dari string ISO
-             let txDateString = "";
-             if (tx.date && tx.date.includes('T')) {
-                 txDateString = tx.date.split('T')[0];
-             } else {
-                 txDateString = tx.date; 
-             }
+             // Parse tanggal dari DB menggunakan helper yang sama dengan Finance Page
+             const txDate = parseDateIDN(tx.date); 
+             if (!txDate) return;
 
-             // Cek apakah tanggal ini ada di 7 hari terakhir dashboard
-             if (chartMap[txDateString]) {
-               // Cek tipe (Income/Expense) menggunakan field 'type' atau 'amount'
-               // Kita handle dua-duanya biar aman
+             // Cari tanggal yang cocok di kerangka chart
+             // .toDateString() menghasilkan format "Fri Dec 12 2025" (tanpa jam)
+             const match = tempData.find(c => 
+               c.dateObj && c.dateObj.toDateString() === txDate.toDateString()
+             );
+
+             if (match) {
                if (tx.type === 'income' || tx.amount > 0) {
-                   chartMap[txDateString].Income += Math.abs(tx.amount);
+                   match.Income += Math.abs(tx.amount);
                } else {
-                   chartMap[txDateString].Expense += Math.abs(tx.amount);
+                   match.Expense += Math.abs(tx.amount);
                }
              }
           });
 
-          // Convert Map ke Array untuk Recharts
-          const finalData = Object.values(chartMap);
-          console.log("📊 [Dashboard] Data Chart Final:", finalData);
-          setChartData(finalData);
-        } else {
-            console.error("❌ [Dashboard] Gagal fetch, status:", res.status);
+          // Hapus properti dateObj (bersihkan data sebelum masuk Recharts)
+          setChartData(tempData.map(({ dateObj, ...rest }) => rest));
         }
       } catch (error) {
-        console.error("❌ [Dashboard] Error loading finance:", error);
+        console.error("Error loading finance:", error);
       }
     };
     loadData();

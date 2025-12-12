@@ -1,52 +1,53 @@
+// File: app/page.tsx
+
 "use client";
 
 import React, { useState, useEffect, memo } from "react";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import { FiCalendar, FiX } from "react-icons/fi";
-import { Loader2 } from "lucide-react"; // Import icon loading
+import { Loader2 } from "lucide-react";
 
-// IMPORT COMPONENTS KITA (Sesuaikan path)
+// --- IMPORT HELPER TANGGAL (PENTING!) ---
+import { parseDateIDN } from "@/lib/utils"; 
+
+// --- IMPORT KOMPONEN KITA ---
 import CalendarWidget from "@/components/CalendarWidget";
 import { 
   ProjectCard, 
   ActivityChart, 
-  SummaryCard, 
+  SummaryCard,
   getTextColor 
-} from "@/components/dashboard/DashboardComponents"; // Sesuaikan path
+} from "@/components/dashboard/DashboardComponents"; 
 
-// IMPORT TYPES
-import { Task, Transaction, DashboardSummary, ChartData } from "@/components/dashboard/types"; // Sesuaikan path
+// --- IMPORT TYPES ---
+import { Task, Transaction, DashboardSummary, ChartData } from "@/components/dashboard/types";
 
-const priorityValues: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
-
+// --- VARIAN ANIMASI ---
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.05
-    }
+  visible: { 
+    opacity: 1, 
+    transition: { staggerChildren: 0.1, delayChildren: 0.05 } 
   }
 };
-
 
 const itemVariants: Variants = {
   hidden: { opacity: 0, y: 10 },
   visible: { 
     opacity: 1, 
     y: 0,
-    transition: {
-      type: "tween", // Error hilang, TypeScript sekarang tahu ini valid
-      ease: "easeOut",
-      duration: 0.3
-    }
+    transition: { type: "tween", ease: "easeOut", duration: 0.3 }
   }
 };
 
-// --- SUBCOMPONENTS FOR PAGE ---
+const priorityValues: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
+
+// ============================================================================
+// 1. KOMPONEN: RIGHT SIDEBAR (Catatan & Kalender)
+// ============================================================================
 const RightSidebar = memo(() => {
   const [notes, setNotes] = useState<any[]>([]);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = JSON.parse(localStorage.getItem("notes") || "[]");
@@ -59,12 +60,15 @@ const RightSidebar = memo(() => {
     <motion.aside 
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }} // Durasi dikurangi
+      transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
       className="flex flex-col gap-3 lg:gap-6 min-h-0"
     >
       <div className="hidden lg:block"><CalendarWidget /></div>
+      
       <section className="bg-white p-4 lg:p-5 rounded-2xl border border-gray-100 shadow-sm">
-        <div className="flex justify-between items-center mb-4"><h3 className="font-semibold text-gray-800 text-sm lg:text-base">Notes</h3></div>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-semibold text-gray-800 text-sm lg:text-base">Notes</h3>
+        </div>
         {notes.length > 0 ? (
           <div className="flex flex-col gap-2">
             {notes.map((note) => (
@@ -77,7 +81,9 @@ const RightSidebar = memo(() => {
             ))}
           </div>
         ) : (
-          <div className="text-gray-400 text-xs py-4 text-center bg-gray-50 rounded-lg border border-dashed border-gray-200">Belum ada catatan.</div>
+          <div className="text-gray-400 text-xs py-4 text-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
+            Belum ada catatan.
+          </div>
         )}
         <a href="/dashboard/notes" className="text-xs text-blue-600 font-medium mt-4 inline-block hover:underline">View All Notes</a>
       </section>
@@ -86,6 +92,9 @@ const RightSidebar = memo(() => {
 });
 RightSidebar.displayName = "RightSidebar";
 
+// ============================================================================
+// 2. KOMPONEN: MAIN CONTENT (Chart & Task) - UPDATED LOGIC
+// ============================================================================
 const MainContent = memo(() => {
   const [recentTasks, setRecentTasks] = useState<Task[]>([]);
   const [chartData, setChartData] = useState<ChartData[]>([]);
@@ -94,20 +103,18 @@ const MainContent = memo(() => {
     total: 0, assigned: 0, closed: 0, highPriority: 0,
   });
 
-  // OPTIMASI: State untuk Lazy Load Chart
   const [isChartReady, setIsChartReady] = useState(false);
 
   useEffect(() => {
-    // Tunggu 400ms agar animasi halaman selesai dulu
-    const timer = setTimeout(() => {
-      setIsChartReady(true);
-    }, 400);
+    const timer = setTimeout(() => setIsChartReady(true), 400);
     return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      // Load Tasks
+    const loadData = async () => {
+      if (typeof window === "undefined") return;
+
+      // 1. LOAD TASKS (LocalStorage)
       const savedTasks: Task[] = JSON.parse(localStorage.getItem("allTasks") || "[]");
       const total = savedTasks.length;
       const assigned = savedTasks.filter((t) => !t.completed).length;
@@ -123,36 +130,60 @@ const MainContent = memo(() => {
       pendingTasks.sort((a, b) => (priorityValues[b.priority] || 0) - (priorityValues[a.priority] || 0));
       setRecentTasks(pendingTasks.slice(0, 3));
 
-      // Load Transactions for Chart
-      const savedTransactions: Transaction[] = JSON.parse(localStorage.getItem("transactions") || "[]");
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const dayFormatter = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short" });
+      // 2. LOAD FINANCE (API Database) - LOGIC DISAMAKAN DENGAN FINANCE PAGE
+      try {
+        const res = await fetch('/api/dashboard/finance');
+        
+        if (res.ok) {
+          const dbTransactions = await res.json();
+          
+          const today = new Date();
+          today.setHours(0, 0, 0, 0); // Reset jam ke 00:00
+          
+          const dayFormatter = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short" });
 
-      const tempData: ChartData[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(today.getDate() - i);
-        tempData.push({ name: dayFormatter.format(d), dateObj: d, Income: 0, Expense: 0 });
-      }
+          const tempData: ChartData[] = [];
+          
+          // Buat Kerangka 7 Hari (Local Time)
+          for (let i = 6; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(today.getDate() - i);
+            tempData.push({ 
+              name: dayFormatter.format(d), 
+              dateObj: d, 
+              Income: 0, 
+              Expense: 0 
+            });
+          }
 
-      const sevenAgo = tempData[0].dateObj as Date;
-      savedTransactions.forEach(tx => {
-        const txDate = new Date(tx.date); 
-        if (txDate >= sevenAgo) {
-           const match = tempData.find(c => 
-             c.dateObj && 
-             c.dateObj.getDate() === txDate.getDate() && 
-             c.dateObj.getMonth() === txDate.getMonth()
-           );
-           if (match) {
-             if (tx.amount > 0) match.Income += tx.amount;
-             else match.Expense += Math.abs(tx.amount);
-           }
+          // Isi Data dengan Logic Pencocokan String (.toDateString)
+          dbTransactions.forEach((tx: any) => {
+             // Parse tanggal menggunakan helper yang sama dengan Finance Page
+             const txDate = parseDateIDN(tx.date); 
+             if (!txDate) return;
+
+             // Match tanggal (mengabaikan jam)
+             const match = tempData.find(c => 
+               c.dateObj && c.dateObj.toDateString() === txDate.toDateString()
+             );
+
+             if (match) {
+               if (tx.type === 'income' || tx.amount > 0) {
+                   match.Income += Math.abs(tx.amount);
+               } else {
+                   match.Expense += Math.abs(tx.amount);
+               }
+             }
+          });
+
+          // Hapus properti dateObj sebelum set state
+          setChartData(tempData.map(({ dateObj, ...rest }) => rest));
         }
-      });
-      setChartData(tempData.map(({ dateObj, ...rest }) => rest));
-    }
+      } catch (error) {
+        console.error("Error loading finance:", error);
+      }
+    };
+    loadData();
   }, []);
 
   return (
@@ -162,7 +193,6 @@ const MainContent = memo(() => {
       animate="visible"
       className="flex flex-col gap-3 lg:gap-6 min-h-0"
     >
-      {/* ITEM 1: Recent Tasks */}
       <motion.section variants={itemVariants}>
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-base lg:text-lg font-semibold text-gray-800">Recent Tasks</h3>
@@ -180,27 +210,22 @@ const MainContent = memo(() => {
             ))
           ) : (
             <div className="col-span-full bg-white p-6 rounded-2xl border border-gray-100 text-center text-gray-500 text-sm">
-              Tidak ada tugas pending.
+              No assignments.
             </div>
           )}
         </div>
       </motion.section>
 
-      {/* ITEM 2: Activity & Summary */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-6">
         <section className="bg-white p-4 lg:p-6 rounded-2xl border border-gray-100 shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-base lg:text-lg font-semibold text-gray-800">Activity</h3>
-            <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-md">
-              Last 7 Days
-            </span>
+            <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-md">Last 7 Days</span>
           </div>
           <div className="h-[200px] md:h-[220px] w-full">
-             {/* OPTIMASI: Tampilkan Chart hanya jika isChartReady = true */}
              {isChartReady ? (
                 <ActivityChart data={chartData} />
              ) : (
-                /* Skeleton Loading Sederhana */
                 <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded-lg animate-pulse">
                    <Loader2 className="w-6 h-6 text-gray-300 animate-spin" />
                 </div>
@@ -214,6 +239,9 @@ const MainContent = memo(() => {
 });
 MainContent.displayName = "MainContent";
 
+// ============================================================================
+// 3. LAYOUT WRAPPER (Gabungkan Main & Sidebar)
+// ============================================================================
 const DashboardLayout = memo(() => {
   return (
     <div className="flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_300px] gap-3 lg:gap-6">
@@ -224,21 +252,23 @@ const DashboardLayout = memo(() => {
 });
 DashboardLayout.displayName = "DashboardLayout";
 
-// --- MAIN EXPORT COMPONENT ---
-export default function FinanceDashboard() {
+// ============================================================================
+// 4. HALAMAN UTAMA (HOME)
+// ============================================================================
+export default function Home() {
   const [isMobileCalendarOpen, setMobileCalendarOpen] = useState(false);
 
   return (
-    <div className="flex flex-1 flex-col min-h-0 bg-gray-50 relative">
+    <div className="flex flex-1 flex-col min-h-screen bg-gray-50 relative font-sans">
       <div className="flex-1 flex overflow-hidden min-h-0">
         <div className="flex-1 overflow-y-auto scroll-smooth min-h-0 hide-scrollbar">
           <div className="p-3 md:p-6 pb-32 min-h-full">
             
-            {/* Mobile Header */}
+            {/* Header Mobile */}
             <motion.div 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }} // Sedikit dipercepat
+              transition={{ duration: 0.3 }}
               className="flex justify-between items-start mb-4 lg:hidden"
             >
               <div>
@@ -257,17 +287,17 @@ export default function FinanceDashboard() {
               </motion.button>
             </motion.div>
 
+            {/* Layout Utama */}
             <DashboardLayout />
             
           </div>
         </div>
       </div>
 
-      {/* MOBILE CALENDAR MODAL */}
+      {/* MODAL KALENDER MOBILE */}
       <AnimatePresence>
         {isMobileCalendarOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:hidden">
-            
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 

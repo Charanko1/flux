@@ -1,38 +1,39 @@
 import mongoose, { Schema, Document, models, Model } from 'mongoose';
 
-// Interface untuk TypeScript
-// PERBAIKAN: Hapus '_id' dari sini karena sudah ada di dalam 'Document'
+// Interface TypeScript
 export interface IEvent extends Document {
-  // _id: string; // <--- HAPUS BARIS INI (biar gak bentrok)
+  userId: string;
   title: string;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM
-  price: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  location?: string;
+  description?: string;
+  category: string;
+  tags: string[];
+  attendees: number; // Pastikan ini number
+  status: 'upcoming' | 'completed' | 'cancelled';
 }
 
-// Skema Mongoose
+// Schema Mongoose
 const EventSchema: Schema = new Schema({
-  title: {
+  userId: { type: String, required: true, index: true }, // Field Kunci Privasi
+  title: { type: String, required: true },
+  date: { type: Date, required: true },
+  startTime: { type: String, default: "00:00" },
+  endTime: { type: String, default: "23:59" },
+  location: { type: String, default: "" },
+  description: { type: String, default: "" },
+  category: { type: String, default: "General" },
+  tags: { type: [String], default: [] },
+  attendees: { type: Number, default: 0 },
+  status: {
     type: String,
-    required: [true, 'Please provide a title for the event.'],
-  },
-  date: {
-    type: String,
-    required: [true, 'Please provide a date for the event.'],
-  },
-  time: {
-    type: String,
-    required: [true, 'Please provide a time for the event.'],
-  },
-  price: {
-    type: String,
-    default: '0',
-  },
-}, {
-  timestamps: true, // Menambahkan createdAt dan updatedAt
-});
+    enum: ['upcoming', 'completed', 'cancelled'],
+    default: 'upcoming',
+  }
+}, { timestamps: true });
 
-// Mencegah model di-compile ulang jika sudah ada (Best practice di Next.js)
 const Event: Model<IEvent> = models.Event || mongoose.model<IEvent>('Event', EventSchema);
 
 export default Event;

@@ -1,47 +1,56 @@
 import React from 'react';
 import StatsCard from './StatsCard';
-import { IconCalendar, IconClock, IconUsers, IconCheckCircle } from '@/components/icons';
-// 1. Import tipe data shared
+// Gunakan Lucide icons biar seragam (atau icon kamu sebelumnya)
+import { Calendar, Clock, Users, CheckCircle } from 'lucide-react'; 
 import { EventData } from '@/lib/types';
 
-// 2. Definisikan Props
 interface StatsSectionProps {
   events: EventData[];
 }
 
-// 3. Pasang Interface di sini
 const StatsSection = ({ events }: StatsSectionProps) => {
-  const upcomingEvents = events.filter(e => new Date(e.date) >= new Date()).length;
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  // Filter Event Upcoming (Termasuk Hari Ini)
+  const upcomingEvents = events.filter(e => {
+     const eDate = new Date(e.date);
+     return eDate >= today;
+  }).length;
   
-  // Pastikan attendees ada (default 0 jika undefined) biar reduce ga error
+  // Total Attendees (Aman dari null/undefined)
   const totalAttendees = events.reduce((sum, e) => sum + (Number(e.attendees) || 0), 0);
   
-  const completedEvents = events.filter(e => new Date(e.date) < new Date()).length;
+  // Filter Completed
+  const completedEvents = events.filter(e => {
+     const eDate = new Date(e.date);
+     return eDate < today;
+  }).length;
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
       <StatsCard
         title="Total Events"
         value={events.length}
-        icon={<IconCalendar className="text-blue-600" />}
+        icon={<Calendar className="text-blue-600" />}
         iconBg="bg-blue-100"
       />
       <StatsCard
-        title="Upcoming Events"
+        title="Upcoming"
         value={upcomingEvents}
-        icon={<IconClock className="text-purple-600" />}
+        icon={<Clock className="text-purple-600" />}
         iconBg="bg-purple-100"
       />
       <StatsCard
         title="Total Attendees"
         value={totalAttendees}
-        icon={<IconUsers className="text-orange-600" />}
+        icon={<Users className="text-orange-600" />}
         iconBg="bg-orange-100"
       />
       <StatsCard
         title="Completed"
         value={completedEvents}
-        icon={<IconCheckCircle className="text-green-600" />}
+        icon={<CheckCircle className="text-green-600" />}
         iconBg="bg-green-100"
       />
     </div>
