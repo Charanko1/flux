@@ -1,3 +1,4 @@
+// File: app/login/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -9,12 +10,12 @@ import { useAuth } from "@/context/AuthContext";
 import { FaLock, FaEye, FaEyeSlash, FaFacebook } from "react-icons/fa";
 import { MdOutlineEmail } from "react-icons/md";
 import { FcGoogle } from "react-icons/fc";
-import { motion, Variants } from "framer-motion"; // Import Framer Motion
+import { motion, Variants } from "framer-motion"; 
+import { Loader2 } from "lucide-react"; // Import Loader2
 
 type SocialLoading = "none" | "google" | "facebook";
 
-// --- ANIMATION VARIANTS (FIXED) ---
-// 👇 2. Tambahkan ': Variants' di sini
+// --- ANIMATION VARIANTS ---
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
@@ -26,19 +27,18 @@ const containerVariants: Variants = {
   },
 };
 
-// 👇 3. Tambahkan ': Variants' di sini juga
 const itemVariants: Variants = {
   hidden: { y: 20, opacity: 0 },
   visible: { 
     y: 0, 
     opacity: 1, 
-    transition: { type: "spring", stiffness: 100 } // Sekarang TypeScript tau "spring" itu aman
+    transition: { type: "spring", stiffness: 100 } 
   },
 };
 
 const Spinner = () => (
   <div className="flex items-center justify-center">
-    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-700 mr-2"></div>
+    <Loader2 className="animate-spin h-4 w-4 border-gray-700 mr-2" />
     <span className="text-xs text-gray-700">Loading...</span>
   </div>
 );
@@ -76,27 +76,38 @@ export default function LoginPage() {
       return;
     }
     setIsLoading(true);
+    setError(null);
+    
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // rememberMe sudah didukung backend kita
         body: JSON.stringify({ ...form, rememberMe }), 
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        // PERUBAHAN DISINI: 
-        // Kita tidak butuh data.token, karena token sudah di-set di Cookie browser.
-        // Cukup update state user dan redirect.
+        // SUKSES: Update Auth Context dan Redirect
         await login(data.user); 
-        router.push("/dashboard"); // Redirect ke dashboard finance
+        router.push("/dashboard"); 
+      } else if (res.status === 403) {
+        // --- LOGIC BARU: AKUN BELUM VERIFIKASI ---
+        setError(data.message || "Login gagal. Akun belum diverifikasi.");
+        
+        // Opsional: Arahkan user kembali ke halaman register/verifikasi jika perlu
+        // Jika kamu mau user langsung ke halaman OTP, aktifkan kode di bawah:
+        /*
+        setTimeout(() => {
+          router.push(`/auth/register?email=${form.email}`);
+        }, 1500);
+        */
       } else {
-        setError(data.message || "Login gagal.");
+        // Gagal karena kredensial salah (401) atau error lain
+        setError(data.message || "Login gagal. Cek kembali email dan password Anda.");
       }
     } catch {
-      setError("Terjadi kesalahan server.");
+      setError("Terjadi kesalahan server saat mencoba login.");
     }
     setIsLoading(false);
   };
@@ -123,8 +134,8 @@ export default function LoginPage() {
         >
           {/* Floating Logo Animation */}
           <motion.div
-             animate={{ y: [0, -10, 0] }}
-             transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+              animate={{ y: [0, -10, 0] }}
+              transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
           >
             <Image src="/logo2.png" alt="Logo" width={160} height={160} priority className="drop-shadow-lg" />
           </motion.div>

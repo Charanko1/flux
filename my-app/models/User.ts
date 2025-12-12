@@ -1,3 +1,4 @@
+// File: models/User.ts
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
@@ -8,6 +9,13 @@ export interface IUser extends Document {
   password: string; 
   role: 'user' | 'admin';
   createdAt: Date;
+  
+  // --- TAMBAHAN OTP ---
+  isVerified: boolean;
+  otp?: string; // OTP bisa undefined/null setelah diverifikasi
+  otpExpires?: Date; // Waktu kadaluarsa OTP
+  // --------------------
+  
   matchPassword(enteredPassword: string): Promise<boolean>; 
 }
 
@@ -29,13 +37,29 @@ const UserSchema: Schema = new Schema({
     type: String,
     required: [true, 'Password wajib diisi.'],
     minlength: [6, 'Password minimal 6 karakter.'],
-    select: false, // <--- PENAMBAHAN KRUSIAL INI! Sembunyikan secara default
+    select: false, 
   },
   role: {
     type: String,
     enum: ['user', 'admin'],
     default: 'user',
   },
+  
+  // --- FIELD BARU UNTUK VERIFIKASI EMAIL ---
+  isVerified: {
+    type: Boolean,
+    default: false, // Default: Belum diverifikasi
+  },
+  otp: {
+    type: String,
+    select: false, // Sembunyikan kode OTP secara default
+  },
+  otpExpires: {
+    type: Date,
+    select: false, // Sembunyikan waktu kadaluarsa OTP
+  },
+  // -----------------------------------------
+  
   createdAt: {
     type: Date,
     default: Date.now,
@@ -46,6 +70,7 @@ const UserSchema: Schema = new Schema({
 
 // 3. MIDDLEWARE: Hashing Password Sebelum Disimpan
 UserSchema.pre<IUser>('save', async function (next) {
+  // Hanya jalankan jika password yang dimodifikasi (atau saat register)
   if (!this.isModified('password')) {
     return next();
   }
@@ -61,8 +86,6 @@ UserSchema.pre<IUser>('save', async function (next) {
 
 // 4. METODE: Fungsi Membandingkan Password untuk Login
 UserSchema.methods.matchPassword = async function (enteredPassword: string): Promise<boolean> {
-  // Karena kita menggunakan .select('+password') di Login Route, 
-  // this.password dijamin membawa hash dari database.
   return await bcrypt.compare(enteredPassword, this.password);
 };
 

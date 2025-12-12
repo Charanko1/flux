@@ -33,8 +33,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: "Email and password are required" }, { status: 400 });
         }
 
-        // 3. Cari Pengguna (Casting ke IUser agar Typescript mengenali matchPassword)
-        // .select('+password') penting agar field password yang disembunyikan diambil.
+        // 3. Cari Pengguna (PENTING: Ambil +password DAN +isVerified)
+        // Kita harus ambil isVerified karena dia tidak disembunyikan di model
         const user = await User.findOne({ email }).select('+password') as IUser | null; 
         
         if (!user) {
@@ -42,33 +42,41 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: "Invalid credentials." }, { status: 401 }); 
         }
 
-        // 4. Verifikasi Password menggunakan metode di Model User
-        // Ini lebih aman dan bersih daripada menggunakan bcrypt.compare langsung
+        // 4. [LOGIC BARU] Pengecekan Status Verifikasi
+        if (!user.isVerified) {
+            // Jika user belum verified, tolak akses (status 403: Forbidden)
+            return NextResponse.json({ 
+                message: "Account not verified. Please check your email and submit the OTP.",
+                action: "VERIFY_REQUIRED" // Tambahkan flag ini untuk Frontend
+            }, { status: 403 }); 
+        }
+
+        // 5. Verifikasi Password
         const isMatch = await user.matchPassword(password);
         
         if (!isMatch) {
             return NextResponse.json({ message: "Invalid credentials." }, { status: 401 });
         }
 
-        // 5. Hitung Waktu Kedaluwarsa
+        // 6. Hitung Waktu Kedaluwarsa
         const oneDay = 60 * 60 * 24; 
         const maxAge = rememberMe ? oneDay * 7 : oneDay; // Cookie Max Age (in seconds)
         const jwtExpiresIn = rememberMe ? "7d" : "1d"; // JWT Expires In (for payload)
 
-        // 6. Buat Token JWT
+        // 7. Buat Token JWT
         const token = jwt.sign(
             { 
                 id: user._id, 
                 email: user.email,
                 name: user.name,
+                // role: user.role // Jangan lupa masukkan role jika perlu
             }, 
             JWT_SECRET, 
             { expiresIn: jwtExpiresIn }
         );
 
-        // 7. Siapkan Response & Set Cookie Session
+        // 8. Siapkan Response & Set Cookie Session
         
-        // Buat response dengan data user
         const response = NextResponse.json(
             { 
                 message: "Login Successful",
@@ -81,7 +89,6 @@ export async function POST(req: Request) {
             { status: 200 }
         );
 
-        // Set Cookie Session (HttpOnly adalah kunci keamanan)
         response.cookies.set('session', token, {
             httpOnly: true, 
             secure: process.env.NODE_ENV === 'production', 
@@ -93,9 +100,7 @@ export async function POST(req: Request) {
         return response;
 
     } catch (error) {
-        // Logging error yang lebih baik
         console.error("[LOGIN_ERROR]:", error); 
-        // Mengembalikan pesan error umum ke client
         return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
     }
 }
