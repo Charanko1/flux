@@ -1,26 +1,21 @@
-// /app/api/auth/login/route.ts
+// File: app/api/auth/login/route.ts (FIXED: VERIFICATION CHECK)
 
 import { NextResponse } from 'next/server';
 import connectDB from "@/lib/mongodb";
-// Import IUser dan User Model
 import User, { IUser } from "@/models/User"; 
 import jwt from "jsonwebtoken";
 
-// Definisikan interface untuk payload request
 interface LoginRequest {
     email: string;
     password: string;
     rememberMe?: boolean;
 }
 
-// Definisikan JWT_SECRET di luar try/catch
 const JWT_SECRET = process.env.JWT_SECRET;
 
 export async function POST(req: Request) {
-    // 1. Validasi Environment Variable
     if (!JWT_SECRET) {
-        console.error("❌ ERROR: JWT_SECRET environment variable is not defined.");
-        return NextResponse.json({ message: "Server configuration error." }, { status: 500 });
+        return NextResponse.json({ message: "Server error: JWT_SECRET missing" }, { status: 500 });
     }
 
     try {
@@ -28,64 +23,45 @@ export async function POST(req: Request) {
         
         const { email, password, rememberMe }: LoginRequest = await req.json();
 
-        // 2. Validasi Input Dasar
         if (!email || !password) {
             return NextResponse.json({ message: "Email and password are required" }, { status: 400 });
         }
 
-        // 3. Cari Pengguna (PENTING: Ambil +password DAN +isVerified)
-        // Kita harus ambil isVerified karena dia tidak disembunyikan di model
-        const user = await User.findOne({ email }).select('+password') as IUser | null; 
+        // FIX: Ambil +isVerified secara eksplisit agar aman
+        const user = await User.findOne({ email }).select('+password +isVerified') as IUser | null; 
         
         if (!user) {
-            // Gunakan pesan error umum untuk keamanan
             return NextResponse.json({ message: "Invalid credentials." }, { status: 401 }); 
         }
 
-        // 4. [LOGIC BARU] Pengecekan Status Verifikasi
+        // Cek Status Verifikasi
         if (!user.isVerified) {
-            // Jika user belum verified, tolak akses (status 403: Forbidden)
             return NextResponse.json({ 
-                message: "Account not verified. Please check your email and submit the OTP.",
-                action: "VERIFY_REQUIRED" // Tambahkan flag ini untuk Frontend
+                message: "Account not verified. Please check your email.",
+                action: "VERIFY_REQUIRED"
             }, { status: 403 }); 
         }
 
-        // 5. Verifikasi Password
+        // Verifikasi Password
         const isMatch = await user.matchPassword(password);
         
         if (!isMatch) {
             return NextResponse.json({ message: "Invalid credentials." }, { status: 401 });
         }
 
-        // 6. Hitung Waktu Kedaluwarsa
+        // Buat Token
         const oneDay = 60 * 60 * 24; 
-        const maxAge = rememberMe ? oneDay * 7 : oneDay; // Cookie Max Age (in seconds)
-        const jwtExpiresIn = rememberMe ? "7d" : "1d"; // JWT Expires In (for payload)
+        const maxAge = rememberMe ? oneDay * 7 : oneDay;
+        const jwtExpiresIn = rememberMe ? "7d" : "1d"; 
 
-        // 7. Buat Token JWT
         const token = jwt.sign(
-            { 
-                id: user._id, 
-                email: user.email,
-                name: user.name,
-                // role: user.role // Jangan lupa masukkan role jika perlu
-            }, 
+            { id: user._id, email: user.email, name: user.name }, 
             JWT_SECRET, 
             { expiresIn: jwtExpiresIn }
         );
 
-        // 8. Siapkan Response & Set Cookie Session
-        
         const response = NextResponse.json(
-            { 
-                message: "Login Successful",
-                user: {
-                    id: user._id,
-                    name: user.name,
-                    email: user.email
-                }
-            }, 
+            { message: "Login Successful", user: { id: user._id, name: user.name, email: user.email } }, 
             { status: 200 }
         );
 

@@ -1,9 +1,9 @@
-// File: app/api/auth/register/route.ts (SINKRONISASI)
+// File: app/api/auth/register/route.ts (FIXED: NO DOUBLE HASH)
 
 import { NextResponse, NextRequest } from "next/server";
 import connectDB from "@/lib/mongodb"; 
 import User from "@/models/User"; 
-import bcrypt from "bcryptjs"; 
+// HAPUS IMPORT BCRYPT (Kita serahkan ke Model User)
 import { sendEmail } from "@/lib/email";
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -11,71 +11,64 @@ const JWT_SECRET = process.env.JWT_SECRET;
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        // --- SINKRONISASI: Menerima 'name', 'email', 'password' ---
+        // FIX: Terima 'name' agar sinkron dengan frontend
         const { name, email, password } = body; 
         
-        // 1. Validasi Input Dasar
         if (!name || !email || !password) {
-            return NextResponse.json({ message: "Missing required fields (name, email, or password)" }, { status: 400 });
+            return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
         }
 
         await connectDB();
 
         const existingUser = await User.findOne({ email });
 
-        // 2. Generate OTP 6 Digit & Expiry Time
+        // Generate OTP
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 menit
+        const otpExpires = new Date(Date.now() + 10 * 60 * 1000); 
 
-        const saltRounds = 10;
-        // Asumsi middleware pre-save di model kamu sudah di-hash
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        // FIX: JANGAN HASH PASSWORD DISINI. 
+        // Biarkan middleware 'pre-save' di User.ts yang melakukannya.
         
-        // 3. Update atau Buat User
         if (existingUser && !existingUser.isVerified) {
-             // Update data user lama yang belum verified
+             // Update user lama
              existingUser.name = name;
              existingUser.email = email;
-             existingUser.password = hashedPassword;
+             existingUser.password = password; // KIRIM PASSWORD ASLI (Plain)
              existingUser.otp = otpCode;
              existingUser.otpExpires = otpExpires;
-             await existingUser.save();
+             await existingUser.save(); // Middleware akan meng-hash password otomatis di sini
 
         } else if (existingUser && existingUser.isVerified) {
-             // Sudah ada & sudah verified -> Tolak
-             return NextResponse.json({ message: "Email already registered and verified." }, { status: 409 }); 
+             return NextResponse.json({ message: "Email already registered." }, { status: 409 }); 
              
         } else {
-             // User baru murni -> Buat baru
+             // Buat user baru
              await User.create({ 
                  name, 
                  email, 
-                 password: hashedPassword,
+                 password, // KIRIM PASSWORD ASLI (Plain)
                  isVerified: false, 
                  otp: otpCode,
                  otpExpires: otpExpires,
-             });
+             }); // Middleware akan meng-hash password otomatis di sini
         }
         
-        // 4. Kirim Email OTP
+        // Kirim Email OTP
         if (email && JWT_SECRET) {
              await sendEmail(
                  email,
                  'Kode Verifikasi Akun FLUX',
-                 `<p>Halo ${name},</p><p>Gunakan kode OTP ini untuk memverifikasi akun Anda:</p><h1 style="background: #f4f4f4; padding: 10px; text-align: center; letter-spacing: 5px; color: #333;">${otpCode}</h1><p>Kode ini berlaku 10 menit. Jangan berikan kepada siapapun.</p>`
+                 `<p>Halo ${name},</p><p>Kode OTP Anda:</p><h1 style="background:#f4f4f4;padding:10px;text-align:center;">${otpCode}</h1>`
              );
         }
 
-        // 5. Respon Sukses
         return NextResponse.json({ 
-            message: "OTP sent to email. Please verify your account.", 
+            message: "OTP sent to email.", 
             email 
         }, { status: 201 });
 
     } catch (error) {
         console.error("Registration Error:", error);
-        return NextResponse.json({ 
-            message: "Internal Server Error. Please check server logs." 
-        }, { status: 500 });
+        return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
     }
 }
