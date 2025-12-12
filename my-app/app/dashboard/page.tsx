@@ -143,28 +143,36 @@ const MainContent = memo(() => {
           const dbTasks = await resTask.json();
           const allTasks: Task[] = dbTasks.map((t: any) => ({ ...t, id: t._id }));
 
-          // Hitung Statistik
+          // Hitung Statistik Dasar
           const total = allTasks.length;
           const assigned = allTasks.filter((t) => !t.completed).length;
           const closed = allTasks.filter((t) => t.completed).length;
           
-          const highPriorityTasks = allTasks.filter((t) => !t.completed && t.priority === "High");
-          // Urutkan High Priority berdasarkan tanggal terdekat
-          highPriorityTasks.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-          
-          setSummary({ total, assigned, closed, highPriority: highPriorityTasks.length });
-          setMostUrgentTask(highPriorityTasks.length > 0 ? highPriorityTasks[0] : null);
+          // Hitung khusus High Priority (untuk display angka statistik)
+          const highPriorityCount = allTasks.filter((t) => !t.completed && t.priority === "High").length;
 
-          // Sorting List Utama: Prioritas dulu (High > Medium > Low), baru Tanggal
+          // --- PERBAIKAN LOGIKA DISINI ---
+          // Ambil SEMUA task yang belum selesai (Pending)
           const pendingTasks = allTasks.filter((t) => !t.completed);
+
+          // Urutkan Pending Task: 
+          // Prioritas (High > Medium > Low) -> lalu Tanggal Terdekat
           pendingTasks.sort((a, b) => {
-             // 1. Bandingkan Priority (High=3, Medium=2, Low=1)
+             // 1. Bandingkan Priority Score
              const pDiff = (priorityValues[b.priority] || 0) - (priorityValues[a.priority] || 0);
              if (pDiff !== 0) return pDiff;
              
              // 2. Kalau priority sama, yang deadline-nya lebih dekat di atas
              return new Date(a.date).getTime() - new Date(b.date).getTime();
           });
+
+          setSummary({ total, assigned, closed, highPriority: highPriorityCount });
+          
+          // Ambil task teratas dari pendingTasks sebagai Most Urgent
+          // (Tidak peduli High/Medium/Low, asalkan dia paling atas di list pending)
+          setMostUrgentTask(pendingTasks.length > 0 ? pendingTasks[0] : null);
+
+          // Set Recent Tasks (Ambil 3 teratas dari list yang sudah disortir)
           setRecentTasks(pendingTasks.slice(0, 3));
         }
       } catch (error) {
@@ -243,13 +251,13 @@ const MainContent = memo(() => {
                 key={task.id} 
                 title={task.title} 
                 dueDate={task.date} 
-                priority={task.priority} // Priority sudah otomatis benar dari DB
+                priority={task.priority}
                 startDate={String(task.id)} 
               />
             ))
           ) : (
             <div className="col-span-full bg-white p-6 rounded-2xl border border-gray-100 text-center text-gray-500 text-sm">
-              Tidak ada tugas pending.
+              No assignments.
             </div>
           )}
         </div>

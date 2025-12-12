@@ -247,7 +247,7 @@ export default function TasksPage() {
                 <div className="bg-gray-100 p-3 rounded-full mb-2">
                   <FiPlus className="text-gray-400 text-xl" />
                 </div>
-                <p className="text-gray-500 text-sm">No assignments yet.</p>
+                <p className="text-gray-500 text-sm">No assignments.</p>
               </div>
             )}
           </div>

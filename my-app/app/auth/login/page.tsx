@@ -1,122 +1,22 @@
-// File: app/login/page.tsx
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
 import Image from "next/image";
-import { useAuth } from "@/context/AuthContext";
 import { FaLock, FaEye, FaEyeSlash, FaFacebook } from "react-icons/fa";
 import { MdOutlineEmail } from "react-icons/md";
 import { FcGoogle } from "react-icons/fc";
-import { motion, Variants } from "framer-motion"; 
-import { Loader2 } from "lucide-react"; // Import Loader2
+import { motion } from "framer-motion"; 
 
-type SocialLoading = "none" | "google" | "facebook";
-
-// --- ANIMATION VARIANTS ---
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.2,
-    },
-  },
-};
-
-const itemVariants: Variants = {
-  hidden: { y: 20, opacity: 0 },
-  visible: { 
-    y: 0, 
-    opacity: 1, 
-    transition: { type: "spring", stiffness: 100 } 
-  },
-};
-
-const Spinner = () => (
-  <div className="flex items-center justify-center">
-    <Loader2 className="animate-spin h-4 w-4 border-gray-700 mr-2" />
-    <span className="text-xs text-gray-700">Loading...</span>
-  </div>
-);
-
-// --- COMPONENT BACKGROUND ---
-const FluxBackground = () => (
-  <div className="absolute inset-0 grid grid-cols-6 pointer-events-none select-none h-full">
-    <div className="bg-gradient-to-b from-[#FFCB74] to-[#E6AE47]" />
-    <div className="bg-gradient-to-b from-[#F6F6F6] to-[#CFA348]" />
-    <div className="bg-gradient-to-b from-[#2F2F2F] to-[#2F2F2F]" />
-    <div className="bg-gradient-to-b from-[#FFCB74] to-[#5C5C5C]" />
-    <div className="bg-gradient-to-b from-[#111111] to-[#F0D28C]" />
-    <div className="bg-gradient-to-b from-[#F6F6F6] to-[#B0A48C]" />
-  </div>
-);
+// Import Logic & Assets yang udah dipisah
+import { useLogin } from "@/hooks/useLogin"; 
+import { FluxBackground, Spinner, containerVariants, itemVariants } from "@/components/LoginAssets";
 
 export default function LoginPage() {
-  const [form, setForm] = useState({ email: "", password: "" });
-  const [isLoading, setIsLoading] = useState(false);
-  const [socialLoading, setSocialLoading] = useState<SocialLoading>("none");
-  const [error, setError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const router = useRouter();
-  const { login } = useAuth();
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.email || !form.password) {
-      setError("Email dan password tidak boleh kosong.");
-      return;
-    }
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, rememberMe }), 
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        // SUKSES: Update Auth Context dan Redirect
-        await login(data.user); 
-        router.push("/dashboard"); 
-      } else if (res.status === 403) {
-        // --- LOGIC BARU: AKUN BELUM VERIFIKASI ---
-        setError(data.message || "Login gagal. Akun belum diverifikasi.");
-        
-        // Opsional: Arahkan user kembali ke halaman register/verifikasi jika perlu
-        // Jika kamu mau user langsung ke halaman OTP, aktifkan kode di bawah:
-        /*
-        setTimeout(() => {
-          router.push(`/auth/register?email=${form.email}`);
-        }, 1500);
-        */
-      } else {
-        // Gagal karena kredensial salah (401) atau error lain
-        setError(data.message || "Login gagal. Cek kembali email dan password Anda.");
-      }
-    } catch {
-      setError("Terjadi kesalahan server saat mencoba login.");
-    }
-    setIsLoading(false);
-  };
-
-  const handleSocialLogin = (provider: "google" | "facebook") => {
-    if (isLoading) return;
-    setSocialLoading(provider);
-    signIn(provider, { callbackUrl: "/dashboard" });
-  };
+  // Panggil Logic di sini (1 baris doang!)
+  const { 
+    form, isLoading, socialLoading, error, showPassword, rememberMe,
+    setRememberMe, setShowPassword, handleChange, handleSubmit, handleSocialLogin 
+  } = useLogin();
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-white">
@@ -132,7 +32,6 @@ export default function LoginPage() {
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="relative z-10 bg-white/70 backdrop-blur-sm shadow-2xl rounded-2xl p-10 flex flex-col items-center max-w-md border border-white/40"
         >
-          {/* Floating Logo Animation */}
           <motion.div
               animate={{ y: [0, -10, 0] }}
               transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}

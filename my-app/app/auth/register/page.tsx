@@ -260,7 +260,7 @@ export default function RegisterPage() {
           value={formData.name}
           onChange={handleChange}
           disabled={isLoading}
-          className="border border-gray-200 bg-gray-50/50 lg:bg-white py-2 pl-9 pr-3 rounded-xl w-full text-xs sm:text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition-all shadow-sm lg:shadow-none"
+          className="border border-gray-200 bg-gray-50/50 lg:bg-white py-2.5 pl-10 rounded-xl w-full text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition-all shadow-sm lg:shadow-sm"
           required
         />
       </motion.div>
@@ -275,7 +275,7 @@ export default function RegisterPage() {
           value={formData.email}
           onChange={handleChange}
           disabled={isLoading}
-          className="border border-gray-200 bg-gray-50/50 lg:bg-white py-2 pl-9 pr-3 rounded-xl w-full text-xs sm:text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition-all shadow-sm lg:shadow-none"
+          className="border border-gray-200 bg-gray-50/50 lg:bg-white py-2.5 pl-10 rounded-xl w-full text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition-all shadow-sm lg:shadow-sm"
           required
         />
       </motion.div>
@@ -290,7 +290,7 @@ export default function RegisterPage() {
           value={formData.password}
           onChange={handleChange}
           disabled={isLoading}
-          className="border border-gray-200 bg-gray-50/50 lg:bg-white py-2 pl-9 pr-9 rounded-xl w-full text-xs sm:text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition-all shadow-sm lg:shadow-none"
+          className="border border-gray-200 bg-gray-50/50 lg:bg-white py-2.5 pl-10 rounded-xl w-full text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition-all shadow-sm lg:shadow-sm"
           required
           minLength={8}
         />

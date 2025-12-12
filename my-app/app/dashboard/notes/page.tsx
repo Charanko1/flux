@@ -178,7 +178,7 @@ export default function NotesPage() {
           </div>
         ) : notes.length === 0 ? (
           <div className="text-center text-gray-500 mt-24 animate-in fade-in duration-500">
-            <p>No records yet.</p>
+            <p>No notes.</p>
             <p>Click “Add Note” to create a new note.</p>
           </div>
         ) : filteredNotes.length === 0 ? (
