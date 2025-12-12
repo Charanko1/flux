@@ -5,33 +5,47 @@ import {
 import { 
   FiFileText, FiCheckSquare, FiClock, FiAlertCircle, FiCalendar 
 } from "react-icons/fi";
-import { Task, DashboardSummary } from "./types"; // Sesuaikan path
+import { Task, DashboardSummary } from "./types";
 
-// --- HELPER FUNCTIONS (Typed) ---
+// --- HELPER FUNCTIONS ---
+
 export const calculateRemainingTime = (dueDate: string | Date) => {
-  if (!dueDate) return "No date";
+  if (!dueDate) return "-";
   const now = new Date();
   const deadline = new Date(dueDate);
   const diff = deadline.getTime() - now.getTime();
-  if (diff <= 0) return "Overdue";
+
+  // Kalau waktu habis
+  if (diff <= 0) return "Time's up!";
+
   const totalSeconds = Math.floor(diff / 1000);
   const days = Math.floor(totalSeconds / (3600 * 24));
   const hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
-  const seconds = totalSeconds % 60;
-  return `${days}d ${hours}h ${seconds}s`;
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60; // <--- INI DETIKNYA
+  
+  // Logic Tampilan:
+  // Kalau masih ada Hari: "2d 5h 30m 10s"
+  // Kalau sisa jam/menit: "5h 30m 10s"
+  if (days > 0) return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  return `${hours}h ${minutes}m ${seconds}s`;
 };
 
+// Logic Mundur: 100% (Full/Aman) -> 0% (Habis/Merah)
 export const calculateProgress = (startDate?: string, dueDate?: string) => {
   if (!startDate || !dueDate) return 0;
+  
   const start = new Date(startDate).getTime();
   const end = new Date(dueDate).getTime();
   const now = new Date().getTime();
-  if (now >= end) return 0;
+
   if (now <= start) return 100;
+  if (now >= end) return 0;
+
   const totalDuration = end - start;
-  if (totalDuration <= 0) return 0;
-  const remainingDuration = end - now;
-  return Math.min(100, Math.max(0, (remainingDuration / totalDuration) * 100));
+  const remainingTime = end - now;
+
+  return Math.min(100, Math.max(0, (remainingTime / totalDuration) * 100));
 };
 
 export const getTextColor = (bgColor?: string) => {
@@ -76,18 +90,30 @@ export const TaskProgress = memo(({ startDate, dueDate }: TaskProgressProps) => 
       setProgress(calculateProgress(startDate, dueDate));
     };
     refresh();
-    const timer = setInterval(refresh, 1000);
+    const timer = setInterval(refresh, 1000); // Update Tiap 1 Detik
     return () => clearInterval(timer);
   }, [startDate, dueDate]);
+
+  // Warna Bar: Hijau (Aman) -> Kuning (Waspada) -> Merah (Kritis)
+  let barColor = "bg-red-500"; 
+  if (progress > 20) barColor = "bg-yellow-500";
+  if (progress > 50) barColor = "bg-green-500";
 
   return (
     <div className="mt-auto">
       <div className="flex justify-between items-center mb-1.5">
-        <span className="text-[10px] text-gray-400 flex items-center gap-1"><FiClock size={10} />Remaining</span>
-        <span className="text-[10px] font-semibold text-gray-700 tabular-nums">{remainingTime}</span>
+        <span className="text-[10px] text-gray-400 flex items-center gap-1">
+            <FiClock size={10} /> Remaining
+        </span>
+        <span className="text-[10px] font-semibold text-gray-700 tabular-nums">
+            {remainingTime}
+        </span>
       </div>
-      <div className="w-full bg-gray-100 rounded-full h-1 overflow-hidden">
-        <div className="h-1 bg-orange-400 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+      <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+        <div 
+            className={`h-full rounded-full transition-all duration-500 ${barColor}`} 
+            style={{ width: `${progress}%` }}
+        ></div>
       </div>
     </div>
   );

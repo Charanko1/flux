@@ -1,16 +1,15 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { FiCheck, FiSearch } from "react-icons/fi";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion"; // Pastikan import ini ada
 
 // Import Components
 import NoteModal from "@/components/dashboard/notes/NoteModal";
 import NoteDetailModal from "@/components/dashboard/notes/NoteDetailModal";
-import { Note } from "../../../components/dashboard/notes/types"; // Sesuaikan path
-import { NotesHeader, NoteCard, SkeletonCard } from "@/components/dashboard/notes/NoteComponents"; // Sesuaikan path
+import { Note } from "../../../components/dashboard/notes/types"; 
+import { NotesHeader, NoteCard, SkeletonCard } from "@/components/dashboard/notes/NoteComponents"; 
 
 export default function NotesPage() {
-  // SOLUSI ERROR: Tambahkan <Note[]> biar TypeScript tau ini array Note
   const [notes, setNotes] = useState<Note[]>([]); 
   
   const [isLoading, setIsLoading] = useState(true);
@@ -18,28 +17,38 @@ export default function NotesPage() {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [isDetailModalOpen, setDetailModalOpen] = useState(false);
   
-  // State ID Animasi
   const [createLayoutId, setCreateLayoutId] = useState<string | null>(null); 
   const [detailLayoutId, setDetailLayoutId] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
 
-  // --- LOGIC NOTIFIKASI ---
   const [showNotification, setShowNotification] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const notificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // 1. FETCH NOTES
   useEffect(() => {
-    const loadNotes = () => {
-      // Casting ke Note[] agar aman
-      const savedNotes = JSON.parse(localStorage.getItem("notes") || "[]") as Note[];
-      setNotes(savedNotes);
-      setIsLoading(false);
+    const fetchNotes = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/dashboard/notes');
+        if (response.ok) {
+          const data = await response.json();
+          const formattedNotes = data.map((n: any) => ({
+            ...n,
+            id: n._id
+          }));
+          setNotes(formattedNotes);
+        }
+      } catch (error) {
+        console.error("Failed to fetch notes:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
-    loadNotes();
+    fetchNotes();
   }, []);
 
-  // Filter Logic (Sekarang aman karena TypeScript tau note punya title)
   const filteredNotes = notes.filter((note) => {
     const query = searchQuery.toLowerCase();
     return (
@@ -48,19 +57,43 @@ export default function NotesPage() {
     );
   });
 
-  const handleSaveNote = (newNote: any) => { // Bisa ganti 'any' ke tipe khusus create note kalau mau
-    const updatedNotes = [...notes, newNote];
-    setNotes(updatedNotes);
-    localStorage.setItem("notes", JSON.stringify(updatedNotes));
-    triggerNotification();
-    closeCreateModal();
+  // 2. CREATE NOTE
+  const handleSaveNote = async (newNoteData: any) => {
+    try {
+      const response = await fetch('/api/dashboard/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newNoteData),
+      });
+
+      if (response.ok) {
+        const createdNote = await response.json();
+        // Tambahkan ID baru ke state
+        setNotes((prev) => [{ ...createdNote, id: createdNote._id }, ...prev]);
+        triggerNotification();
+        closeCreateModal();
+      }
+    } catch (error) {
+      console.error("Failed to create note:", error);
+      alert("Gagal membuat catatan.");
+    }
   };
 
-  const handleUpdateNote = (updatedNote: Note) => {
-    const newNotes = notes.map((n) => (n.id === updatedNote.id ? updatedNote : n));
-    setNotes(newNotes);
-    localStorage.setItem("notes", JSON.stringify(newNotes));
-    setSelectedNote(updatedNote); 
+  // 3. UPDATE NOTE
+  const handleUpdateNote = async (updatedNote: Note) => {
+    try {
+      const newNotes = notes.map((n) => (n.id === updatedNote.id ? updatedNote : n));
+      setNotes(newNotes);
+      setSelectedNote(updatedNote); 
+
+      await fetch('/api/dashboard/notes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedNote),
+      });
+    } catch (error) {
+      console.error("Failed to update note:", error);
+    }
   };
 
   const triggerNotification = () => {
@@ -68,28 +101,31 @@ export default function NotesPage() {
       clearTimeout(notificationTimeoutRef.current);
     }
     setShowNotification(true);
-    setTimeout(() => {
-      setIsVisible(true);
-    }, 10);
+    setTimeout(() => setIsVisible(true), 10);
     notificationTimeoutRef.current = setTimeout(() => {
       setIsVisible(false);
-      setTimeout(() => {
-        setShowNotification(false);
-      }, 500); 
+      setTimeout(() => setShowNotification(false), 500); 
     }, 3000); 
   };
 
-  const handleDelete = (id: string | number) => {
-    if (confirm("Yakin mau hapus catatan ini?")) {
-      const updatedNotes = notes.filter((note) => note.id !== id);
-      setNotes(updatedNotes);
-      localStorage.setItem("notes", JSON.stringify(updatedNotes));
-      setDetailModalOpen(false);
-      setSelectedNote(null);
+  // 4. DELETE NOTE
+  const handleDelete = async (id: string | number) => {
+    if (confirm("Are you sure you want to delete this note?")) {
+      try {
+        // Optimistic Update: Hapus dari UI langsung biar animasi jalan
+        const updatedNotes = notes.filter((note) => note.id !== id);
+        setNotes(updatedNotes);
+        
+        setDetailModalOpen(false);
+        setSelectedNote(null);
+
+        await fetch(`/api/dashboard/notes?id=${id}`, { method: 'DELETE' });
+      } catch (error) {
+        console.error("Failed to delete note:", error);
+      }
     }
   };
 
-  // FUNGSI MODAL
   const openDetail = (note: Note) => {
     setDetailLayoutId(`note-card-${note.id}`);
     setSelectedNote(note);
@@ -114,7 +150,6 @@ export default function NotesPage() {
   return (
     <div className="w-full bg-gray-50 min-h-screen relative">
       
-      {/* HEADER Component */}
       <NotesHeader 
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -122,7 +157,6 @@ export default function NotesPage() {
         isCreateModalOpen={isCreateModalOpen}
       />
 
-      {/* Main Content */}
       <div className="px-8 pb-8 w-full max-w-7xl mx-auto">
         
         {/* Notification Toast */}
@@ -132,7 +166,7 @@ export default function NotesPage() {
               <FiCheck size={16} />
             </div>
             <div>
-              <h3 className="font-semibold text-amber-900">Note successfully added!</h3>
+              <h3 className="font-semibold text-amber-900">Note successfully saved!</h3>
             </div>
           </div>
         </div>
@@ -152,26 +186,39 @@ export default function NotesPage() {
              <div className="inline-block p-3 bg-gray-100 rounded-full mb-3">
                 <FiSearch size={24} className="text-gray-400" />
              </div>
-            <p>No results found.<strong>"{searchQuery}"</strong></p>
+            <p>No results found for <strong>"{searchQuery}"</strong></p>
             <button onClick={() => setSearchQuery("")} className="text-amber-600 hover:underline mt-2 text-sm">
-              Bersihkan pencarian
+              Clear search
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {filteredNotes.map((note) => (
-              <NoteCard 
-                key={note.id} 
-                note={note} 
-                onClick={openDetail} 
-                onDelete={handleDelete} 
-              />
-            ))}
-          </div>
+          // UPDATE ANIMASI: Bungkus dengan motion.div dan AnimatePresence
+          <motion.div 
+            layout 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+          >
+            <AnimatePresence mode="popLayout">
+              {filteredNotes.map((note) => (
+                <motion.div
+                  key={note.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
+                  transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                >
+                  <NoteCard 
+                    note={note} 
+                    onClick={openDetail} 
+                    onDelete={handleDelete} 
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
         )}
       </div>
 
-      {/* CREATE MODAL */}
       <AnimatePresence>
         {isCreateModalOpen && (
           <NoteModal 
@@ -183,7 +230,6 @@ export default function NotesPage() {
         )}
       </AnimatePresence>
       
-      {/* DETAIL MODAL */}
       <AnimatePresence>
         {isDetailModalOpen && selectedNote && (
           <NoteDetailModal 

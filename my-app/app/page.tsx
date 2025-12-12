@@ -1,341 +1,194 @@
-// File: app/page.tsx
-
 "use client";
 
-import React, { useState, useEffect, memo } from "react";
-import { motion, AnimatePresence, Variants } from "framer-motion";
-import { FiCalendar, FiX } from "react-icons/fi";
-import { Loader2 } from "lucide-react";
+import React from "react";
+import Link from "next/link";
+import { motion, Variants } from "framer-motion";
 
-// --- IMPORT HELPER TANGGAL (PENTING!) ---
-import { parseDateIDN } from "@/lib/utils";
+const fadeInUp: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { duration: 0.5, ease: "easeOut" } 
+  }
+};
 
-// --- IMPORT KOMPONEN KITA ---
-import CalendarWidget from "@/components/CalendarWidget";
-import { 
-  ProjectCard, 
-  ActivityChart, 
-  SummaryCard,
-  getTextColor 
-} from "@/components/dashboard/DashboardComponents"; 
-
-// --- IMPORT TYPES ---
-import { Task, Transaction, DashboardSummary, ChartData } from "@/components/dashboard/types";
-
-// --- VARIAN ANIMASI ---
-const containerVariants: Variants = {
+const staggerContainer = {
   hidden: { opacity: 0 },
-  visible: { 
-    opacity: 1, 
-    transition: { staggerChildren: 0.1, delayChildren: 0.05 } 
-  }
-};
-
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: { 
-    opacity: 1, 
-    y: 0,
-    transition: { type: "tween", ease: "easeOut", duration: 0.3 }
-  }
-};
-
-const priorityValues: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
-
-// ============================================================================
-// 1. KOMPONEN: RIGHT SIDEBAR (Catatan & Kalender)
-// ============================================================================
-const RightSidebar = memo(() => {
-  const [notes, setNotes] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = JSON.parse(localStorage.getItem("notes") || "[]");
-      const recent = saved.slice(-3).reverse();
-      setNotes(recent);
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
     }
-  }, []);
+  }
+};
 
+export default function LandingPage() {
   return (
-    <motion.aside 
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
-      className="flex flex-col gap-3 lg:gap-6 min-h-0"
-    >
-      <div className="hidden lg:block"><CalendarWidget /></div>
+    <main className="min-h-screen bg-white text-gray-900 hide-scrollbar overflow-x-hidden selection:bg-yellow-200">
       
-      <section className="bg-white p-4 lg:p-5 rounded-2xl border border-gray-100 shadow-sm">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold text-gray-800 text-sm lg:text-base">Notes</h3>
-        </div>
-        {notes.length > 0 ? (
-          <div className="flex flex-col gap-2">
-            {notes.map((note) => (
-              <a key={note.id} href="/dashboard/notes" title={note.title} 
-                className={`p-3 rounded-xl text-xs font-medium truncate cursor-pointer transition-all hover:opacity-80 border ${getTextColor(note.color)}`}
-                style={{ backgroundColor: note.color || "#FFFFFF", borderColor: !note.color || note.color === "#FFFFFF" ? "#E5E7EB" : "transparent" }}
+      {/* Header */}
+      <header className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 transition-all">
+        <div className="max-w-7xl mx-auto px-5 py-3 flex items-center justify-between">
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center gap-2"
+          >
+            <img src="/logo2.png" alt="Flux logo" className="h-8 w-auto" />
+            <span className="font-bold text-base tracking-wide">FLUX</span>
+          </motion.div>
+
+          <nav className="flex items-center gap-3">
+            <Link href="/auth/login" className="text-sm font-medium text-gray-700 hover:text-black transition-colors">
+              Log In
+            </Link>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Link
+                href="/auth/register"
+                className="inline-block bg-yellow-400 hover:bg-yellow-500 text-black text-xs font-bold px-4 py-2 rounded-md shadow-sm transition-all"
               >
-                {note.title}
-              </a>
-            ))}
-          </div>
-        ) : (
-          <div className="text-gray-400 text-xs py-4 text-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
-            Belum ada catatan.
-          </div>
-        )}
-        <a href="/dashboard/notes" className="text-xs text-blue-600 font-medium mt-4 inline-block hover:underline">View All Notes</a>
+                Sign Up
+              </Link>
+            </motion.div>
+          </nav>
+        </div>
+      </header>
+
+      {/* Hero Section - KEMBALI KE bg-gray-50 */}
+      <section className="relative bg-gray-50 pt-28 pb-12 lg:pt-36 lg:pb-20 overflow-hidden border-b border-gray-100">
+        
+        {/* Dekorasi tetap ada tapi lebih subtle agar masuk dengan bg-gray-50 */}
+        <div className="absolute top-0 right-0 -z-10 w-[500px] h-[500px] bg-yellow-100/60 rounded-full blur-3xl opacity-60 translate-x-1/3 -translate-y-1/4"></div>
+
+        <div className="max-w-6xl mx-auto px-5 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+          
+          <motion.div 
+            initial="hidden"
+            animate="visible"
+            variants={staggerContainer}
+            className="lg:pr-8 flex flex-col justify-center"
+          >
+            <motion.h1 variants={fadeInUp} className="text-4xl lg:text-5xl font-extrabold leading-tight text-gray-900">
+              Your Personal Flow <br />
+              <span className="text-yellow-500">
+                in Motion
+              </span>
+            </motion.h1>
+
+            <motion.p variants={fadeInUp} className="mt-3 text-base text-gray-600 max-w-lg leading-relaxed">
+              Streamline your productivity with Flux. Track time, manage tasks, 
+              and visualize your progress all in one place.
+            </motion.p>
+
+            <motion.div variants={fadeInUp} className="mt-6 flex gap-3">
+              <Link
+                href="/auth/register"
+                className="inline-flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-6 py-3 rounded-full shadow hover:shadow-lg transition-all text-sm"
+              >
+                Get Started
+              </Link>
+            </motion.div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8 }}
+            className="flex justify-center lg:justify-end items-center relative"
+          >
+            <motion.div
+              animate={{ y: [0, -10, 0] }}
+              transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+              className="w-full max-w-sm relative z-10"
+            >
+               <img src="/logo.png" alt="Flux mark" className="w-full h-auto drop-shadow-xl relative" />
+            </motion.div>
+          </motion.div>
+
+        </div>
       </section>
-    </motion.aside>
-  );
-});
-RightSidebar.displayName = "RightSidebar";
 
-// ============================================================================
-// 2. KOMPONEN: MAIN CONTENT (Chart & Task) - UPDATED LOGIC (FIX CHART BUG)
-// ============================================================================
-const MainContent = memo(() => {
-  const [recentTasks, setRecentTasks] = useState<Task[]>([]);
-  const [chartData, setChartData] = useState<ChartData[]>([]);
-  const [mostUrgentTask, setMostUrgentTask] = useState<Task | null>(null);
-  const [summary, setSummary] = useState<DashboardSummary>({
-    total: 0, assigned: 0, closed: 0, highPriority: 0,
-  });
+      {/* Features Section */}
+      <section id="features" className="max-w-7xl mx-auto px-5 py-16">
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center mb-10"
+        >
+          <h2 className="text-2xl font-semibold text-gray-800">Everything You Need to Stay Productive</h2>
+        </motion.div>
 
-  const [isChartReady, setIsChartReady] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsChartReady(true), 400);
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    const loadData = async () => {
-      if (typeof window === "undefined") return;
-
-      // 1. LOAD TASKS (LocalStorage)
-      const savedTasks: Task[] = JSON.parse(localStorage.getItem("allTasks") || "[]");
-      const total = savedTasks.length;
-      const assigned = savedTasks.filter((t) => !t.completed).length;
-      const closed = savedTasks.filter((t) => t.completed).length;
-      const highPriorityTasks = savedTasks.filter((t) => !t.completed && t.priority === "High");
-      
-      highPriorityTasks.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      
-      setSummary({ total, assigned, closed, highPriority: highPriorityTasks.length });
-      setMostUrgentTask(highPriorityTasks.length > 0 ? highPriorityTasks[0] : null);
-
-      const pendingTasks = savedTasks.filter((t) => !t.completed);
-      pendingTasks.sort((a, b) => (priorityValues[b.priority] || 0) - (priorityValues[a.priority] || 0));
-      setRecentTasks(pendingTasks.slice(0, 3));
-
-      // 2. LOAD FINANCE (API Database) - FIX CHART LOGIC
-      try {
-        const res = await fetch('/api/dashboard/finance');
-        
-        if (res.ok) {
-          const dbTransactions = await res.json();
-          
-          // --- LOGIC CHART: STRING MATCHING (ANTI-TIMEZONE BUG) ---
-          const today = new Date();
-          today.setHours(0, 0, 0, 0); // Reset jam
-          
-          const dayFormatter = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short" });
-
-          const tempData: ChartData[] = [];
-          
-          // A. Buat Kerangka 7 Hari Terakhir
-          for (let i = 6; i >= 0; i--) {
-            const d = new Date(today);
-            d.setDate(today.getDate() - i);
-            tempData.push({ 
-              name: dayFormatter.format(d), 
-              dateObj: d, 
-              Income: 0, 
-              Expense: 0 
-            });
-          }
-
-          // B. Isi Data (Gunakan .toDateString() untuk mengabaikan jam)
-          dbTransactions.forEach((tx: any) => {
-             // Parse tanggal dari DB menggunakan helper yang sama dengan Finance Page
-             const txDate = parseDateIDN(tx.date); 
-             if (!txDate) return;
-
-             // Cari tanggal yang cocok di kerangka chart
-             // .toDateString() menghasilkan format "Fri Dec 12 2025" (tanpa jam)
-             const match = tempData.find(c => 
-               c.dateObj && c.dateObj.toDateString() === txDate.toDateString()
-             );
-
-             if (match) {
-               if (tx.type === 'income' || tx.amount > 0) {
-                   match.Income += Math.abs(tx.amount);
-               } else {
-                   match.Expense += Math.abs(tx.amount);
-               }
-             }
-          });
-
-          // Hapus properti dateObj (bersihkan data sebelum masuk Recharts)
-          setChartData(tempData.map(({ dateObj, ...rest }) => rest));
-        }
-      } catch (error) {
-        console.error("Error loading finance:", error);
-      }
-    };
-    loadData();
-  }, []);
-
-  return (
-    <motion.main 
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="flex flex-col gap-3 lg:gap-6 min-h-0"
-    >
-      <motion.section variants={itemVariants}>
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="text-base lg:text-lg font-semibold text-gray-800">Recent Tasks</h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-4">
-          {recentTasks.length > 0 ? (
-            recentTasks.map((task) => (
-              <ProjectCard 
-                key={task.id} 
-                title={task.title} 
-                dueDate={task.date} 
-                priority={task.priority} 
-                startDate={String(task.id)} 
-              />
-            ))
-          ) : (
-            <div className="col-span-full bg-white p-6 rounded-2xl border border-gray-100 text-center text-gray-500 text-sm">
-              Tidak ada tugas pending.
-            </div>
-          )}
-        </div>
-      </motion.section>
-
-      <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-6">
-        <section className="bg-white p-4 lg:p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-base lg:text-lg font-semibold text-gray-800">Activity</h3>
-            <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-md">Last 7 Days</span>
-          </div>
-          <div className="h-[200px] md:h-[220px] w-full">
-             {isChartReady ? (
-                <ActivityChart data={chartData} />
-             ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded-lg animate-pulse">
-                   <Loader2 className="w-6 h-6 text-gray-300 animate-spin" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {[
+            { title: "Task", desc: "Organize and prioritize your tasks effortlessly.", icon: '✓' },
+            { title: "Event", desc: "Schedule and manage your events visually.", icon: '📅' },
+            { title: "Finance", desc: "Track your expenses and manage budget.", icon: '💹' },
+            { title: "Notes", desc: "Capture your thoughts and ideas instantly.", icon: '📝' },
+          ].map((f, index) => (
+            <motion.div
+              key={f.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: index * 0.1 }}
+              whileHover={{ y: -5 }}
+              // KEMBALI KE bg-gray-50 agar kontras dengan section putih
+              className="bg-gray-50 rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-yellow-300 transition-all duration-300"
+            >
+              <div className="flex items-start gap-4">
+                <div className="h-10 w-10 flex items-center justify-center rounded-full bg-yellow-100 text-yellow-700 text-xl">
+                  {f.icon}
                 </div>
-             )}
-          </div>
-        </section>
-        <SummaryCard summary={summary} mostUrgentTask={mostUrgentTask} />
-      </motion.div>
-    </motion.main>
-  );
-});
-
-MainContent.displayName = "MainContent";
-
-// ============================================================================
-// 3. LAYOUT WRAPPER (Gabungkan Main & Sidebar)
-// ============================================================================
-const DashboardLayout = memo(() => {
-  return (
-    <div className="flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_300px] gap-3 lg:gap-6">
-      <MainContent />
-      <RightSidebar />
-    </div>
-  );
-});
-DashboardLayout.displayName = "DashboardLayout";
-
-// ============================================================================
-// 4. HALAMAN UTAMA (HOME)
-// ============================================================================
-export default function Home() {
-  const [isMobileCalendarOpen, setMobileCalendarOpen] = useState(false);
-
-  return (
-    <div className="flex flex-1 flex-col min-h-screen bg-gray-50 relative font-sans">
-      <div className="flex-1 flex overflow-hidden min-h-0">
-        <div className="flex-1 overflow-y-auto scroll-smooth min-h-0 hide-scrollbar">
-          <div className="p-3 md:p-6 pb-32 min-h-full">
-            
-            {/* Header Mobile */}
-            <motion.div 
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="flex justify-between items-start mb-4 lg:hidden"
-            >
-              <div>
-                <h2 className="text-xl font-bold text-gray-800">Dashboard</h2>
-                <p className="text-xs text-gray-500">Manage and track all your tasks</p>
+                <div>
+                   <h3 className="text-base font-bold text-gray-900">{f.title}</h3>
+                   <p className="mt-1 text-sm text-gray-500 leading-snug">{f.desc}</p>
+                </div>
               </div>
-              
-              <motion.button
-                layoutId="dashboard-calendar-trigger"
-                onClick={() => setMobileCalendarOpen(true)}
-                style={{ opacity: isMobileCalendarOpen ? 0 : 1 }}
-                className="p-2 bg-white border border-gray-200 rounded-lg shadow-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                whileTap={{ scale: 0.9 }}
-              >
-                <FiCalendar size={18} />
-              </motion.button>
             </motion.div>
+          ))}
+        </div>
+      </section>
 
-            {/* Layout Utama */}
-            <DashboardLayout />
-            
+      {/* CTA Section - Black */}
+      <section className="bg-black text-white px-5 py-16">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          className="max-w-4xl mx-auto text-center"
+        >
+            <h3 className="text-2xl md:text-3xl font-semibold mb-4">Ready to Transform Your Workflow?</h3>
+            <p className="text-gray-300 max-w-xl mx-auto text-base mb-8">
+                Join thousands of users who have already optimized their productivity with Flux.
+            </p>
+
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Link
+                href="/auth/register"
+                className="inline-block bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-8 py-3 rounded-full shadow-lg transition-all"
+            >
+                Start Now!
+            </Link>
+            </motion.div>
+        </motion.div>
+      </section>
+
+      {/* Footer */}
+      <footer className="w-full border-t border-gray-100 bg-white">
+        <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col md:flex-row items-center justify-between text-xs text-gray-500 gap-3">
+          <div className="flex items-center gap-2">
+            <img src="/logo2.png" alt="Flux" className="h-5 w-auto" />
+            <span>© {new Date().getFullYear()} Flux. All rights reserved.</span>
+          </div>
+          <div className="flex gap-6">
+            <a href="#" className="hover:text-black hover:underline transition-colors">Privacy Policy</a>
+            <a href="#" className="hover:text-black hover:underline transition-colors">Terms of Service</a>
+            <a href="#" className="hover:text-black hover:underline transition-colors">Contact</a>
           </div>
         </div>
-      </div>
-
-      {/* MODAL KALENDER MOBILE */}
-      <AnimatePresence>
-        {isMobileCalendarOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:hidden">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-              onClick={() => setMobileCalendarOpen(false)}
-            />
-
-            <motion.div 
-              layoutId="dashboard-calendar-trigger" 
-              className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden relative z-10"
-              transition={{ type: "spring", stiffness: 350, damping: 25 }}
-            >
-              <div className="flex justify-between items-center p-3 border-b border-gray-100">
-                <h3 className="font-semibold text-gray-800">Calendar</h3>
-                <button 
-                  onClick={() => setMobileCalendarOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
-                >
-                  <FiX size={20} />
-                </button>
-              </div>
-              <div className="p-3">
-                <CalendarWidget />
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-        
-      <style jsx global>{`
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
-    </div>
+      </footer>
+    </main>
   );
 }

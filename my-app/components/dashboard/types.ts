@@ -1,11 +1,10 @@
-// types.ts
 export interface Task {
   id: string | number;
   title: string;
-  date: string; // dueDate
+  date: string; // Ini Deadline (dueDate)
   priority: "High" | "Medium" | "Low";
   completed: boolean;
-  startDate?: string; // Opsional kalau ada
+  createdAt?: string; // <--- WAJIB DITAMBAH (Tanggal Dibuat)
 }
 
 export interface Transaction {
@@ -26,5 +25,5 @@ export interface ChartData {
   name: string;
   Income: number;
   Expense: number;
-  dateObj?: Date; // Helper untuk sorting
+  dateObj?: Date;
 }

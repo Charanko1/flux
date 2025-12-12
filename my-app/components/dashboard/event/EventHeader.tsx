@@ -41,4 +41,4 @@ export default function EventHeader({ onOpenMobileCalendar, onOpenCreate }: Even
       </div>
     </div>
   );
-}
+} 

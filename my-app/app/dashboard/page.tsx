@@ -7,10 +7,7 @@ import { motion, AnimatePresence, Variants } from "framer-motion";
 import { FiCalendar, FiX } from "react-icons/fi";
 import { Loader2 } from "lucide-react";
 
-// --- IMPORT HELPER TANGGAL (PENTING!) ---
-import { parseDateIDN } from "@/lib/utils"; 
-
-// --- IMPORT KOMPONEN KITA ---
+// --- IMPORT KOMPONEN ---
 import CalendarWidget from "@/components/CalendarWidget";
 import { 
   ProjectCard, 
@@ -20,7 +17,7 @@ import {
 } from "@/components/dashboard/DashboardComponents"; 
 
 // --- IMPORT TYPES ---
-import { Task, Transaction, DashboardSummary, ChartData } from "@/components/dashboard/types";
+import { Task, DashboardSummary, ChartData } from "@/components/dashboard/types";
 
 // --- VARIAN ANIMASI ---
 const containerVariants: Variants = {
@@ -40,20 +37,33 @@ const itemVariants: Variants = {
   }
 };
 
+// Logic Score untuk Sorting (High > Medium > Low)
 const priorityValues: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
 
 // ============================================================================
-// 1. KOMPONEN: RIGHT SIDEBAR (Catatan & Kalender)
+// 1. KOMPONEN: RIGHT SIDEBAR (Catatan Database & Kalender)
 // ============================================================================
 const RightSidebar = memo(() => {
   const [notes, setNotes] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = JSON.parse(localStorage.getItem("notes") || "[]");
-      const recent = saved.slice(-3).reverse();
-      setNotes(recent);
-    }
+    const fetchRecentNotes = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/dashboard/notes', { cache: 'no-store' });
+        if (response.ok) {
+          const data = await response.json();
+          setNotes(data.slice(0, 3));
+        }
+      } catch (error) {
+        console.error("Gagal mengambil notes:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRecentNotes();
   }, []);
 
   return (
@@ -67,14 +77,25 @@ const RightSidebar = memo(() => {
       
       <section className="bg-white p-4 lg:p-5 rounded-2xl border border-gray-100 shadow-sm">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold text-gray-800 text-sm lg:text-base">Notes</h3>
+          <h3 className="font-semibold text-gray-800 text-sm lg:text-base">Recent Notes</h3>
         </div>
-        {notes.length > 0 ? (
+        
+        {isLoading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+          </div>
+        ) : notes.length > 0 ? (
           <div className="flex flex-col gap-2">
             {notes.map((note) => (
-              <a key={note.id} href="/dashboard/notes" title={note.title} 
+              <a 
+                key={note._id || note.id} 
+                href="/dashboard/notes" 
+                title={note.title} 
                 className={`p-3 rounded-xl text-xs font-medium truncate cursor-pointer transition-all hover:opacity-80 border ${getTextColor(note.color)}`}
-                style={{ backgroundColor: note.color || "#FFFFFF", borderColor: !note.color || note.color === "#FFFFFF" ? "#E5E7EB" : "transparent" }}
+                style={{ 
+                  backgroundColor: note.color || "#FFFFFF", 
+                  borderColor: !note.color || note.color === "#FFFFFF" ? "#E5E7EB" : "transparent" 
+                }}
               >
                 {note.title}
               </a>
@@ -82,9 +103,10 @@ const RightSidebar = memo(() => {
           </div>
         ) : (
           <div className="text-gray-400 text-xs py-4 text-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
-            Belum ada catatan.
+            No notes available.
           </div>
         )}
+        
         <a href="/dashboard/notes" className="text-xs text-blue-600 font-medium mt-4 inline-block hover:underline">View All Notes</a>
       </section>
     </motion.aside>
@@ -93,7 +115,7 @@ const RightSidebar = memo(() => {
 RightSidebar.displayName = "RightSidebar";
 
 // ============================================================================
-// 2. KOMPONEN: MAIN CONTENT (Chart & Task) - UPDATED LOGIC
+// 2. KOMPONEN: MAIN CONTENT (Chart & Task Database)
 // ============================================================================
 const MainContent = memo(() => {
   const [recentTasks, setRecentTasks] = useState<Task[]>([]);
@@ -112,77 +134,94 @@ const MainContent = memo(() => {
 
   useEffect(() => {
     const loadData = async () => {
-      if (typeof window === "undefined") return;
-
-      // 1. LOAD TASKS (LocalStorage)
-      const savedTasks: Task[] = JSON.parse(localStorage.getItem("allTasks") || "[]");
-      const total = savedTasks.length;
-      const assigned = savedTasks.filter((t) => !t.completed).length;
-      const closed = savedTasks.filter((t) => t.completed).length;
-      const highPriorityTasks = savedTasks.filter((t) => !t.completed && t.priority === "High");
-      
-      highPriorityTasks.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      
-      setSummary({ total, assigned, closed, highPriority: highPriorityTasks.length });
-      setMostUrgentTask(highPriorityTasks.length > 0 ? highPriorityTasks[0] : null);
-
-      const pendingTasks = savedTasks.filter((t) => !t.completed);
-      pendingTasks.sort((a, b) => (priorityValues[b.priority] || 0) - (priorityValues[a.priority] || 0));
-      setRecentTasks(pendingTasks.slice(0, 3));
-
-      // 2. LOAD FINANCE (API Database) - LOGIC DISAMAKAN DENGAN FINANCE PAGE
+      // ---------------------------------------------------------
+      // 1. FETCH TASKS (Backend sudah Auto-Update Priority)
+      // ---------------------------------------------------------
       try {
-        const res = await fetch('/api/dashboard/finance');
-        
-        if (res.ok) {
-          const dbTransactions = await res.json();
+        const resTask = await fetch('/api/dashboard/task', { cache: 'no-store' });
+        if (resTask.ok) {
+          const dbTasks = await resTask.json();
+          const allTasks: Task[] = dbTasks.map((t: any) => ({ ...t, id: t._id }));
+
+          // Hitung Statistik
+          const total = allTasks.length;
+          const assigned = allTasks.filter((t) => !t.completed).length;
+          const closed = allTasks.filter((t) => t.completed).length;
+          
+          const highPriorityTasks = allTasks.filter((t) => !t.completed && t.priority === "High");
+          // Urutkan High Priority berdasarkan tanggal terdekat
+          highPriorityTasks.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          
+          setSummary({ total, assigned, closed, highPriority: highPriorityTasks.length });
+          setMostUrgentTask(highPriorityTasks.length > 0 ? highPriorityTasks[0] : null);
+
+          // Sorting List Utama: Prioritas dulu (High > Medium > Low), baru Tanggal
+          const pendingTasks = allTasks.filter((t) => !t.completed);
+          pendingTasks.sort((a, b) => {
+             // 1. Bandingkan Priority (High=3, Medium=2, Low=1)
+             const pDiff = (priorityValues[b.priority] || 0) - (priorityValues[a.priority] || 0);
+             if (pDiff !== 0) return pDiff;
+             
+             // 2. Kalau priority sama, yang deadline-nya lebih dekat di atas
+             return new Date(a.date).getTime() - new Date(b.date).getTime();
+          });
+          setRecentTasks(pendingTasks.slice(0, 3));
+        }
+      } catch (error) {
+        console.error("Error loading tasks:", error);
+      }
+
+      // ---------------------------------------------------------
+      // 2. FETCH FINANCE (Logic tetap sama)
+      // ---------------------------------------------------------
+      try {
+        const resFinance = await fetch('/api/dashboard/finance', { cache: 'no-store' });
+        if (resFinance.ok) {
+          const dbTransactions = await resFinance.json();
           
           const today = new Date();
-          today.setHours(0, 0, 0, 0); // Reset jam ke 00:00
-          
           const dayFormatter = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short" });
-
-          const tempData: ChartData[] = [];
           
-          // Buat Kerangka 7 Hari (Local Time)
+          const toLocalISOString = (d: Date) => {
+            const offset = d.getTimezoneOffset() * 60000;
+            return new Date(d.getTime() - offset).toISOString().split('T')[0];
+          };
+
+          const chartMap: Record<string, { name: string, Income: number, Expense: number }> = {};
+          
           for (let i = 6; i >= 0; i--) {
-            const d = new Date(today);
+            const d = new Date();
             d.setDate(today.getDate() - i);
-            tempData.push({ 
+            const dateKey = toLocalISOString(d);
+            chartMap[dateKey] = { 
               name: dayFormatter.format(d), 
-              dateObj: d, 
               Income: 0, 
               Expense: 0 
-            });
+            };
           }
 
-          // Isi Data dengan Logic Pencocokan String (.toDateString)
           dbTransactions.forEach((tx: any) => {
-             // Parse tanggal menggunakan helper yang sama dengan Finance Page
-             const txDate = parseDateIDN(tx.date); 
-             if (!txDate) return;
+             if (!tx.date) return;
+             const rawDateStr = tx.date.toString();
+             const txDateKey = rawDateStr.includes('T') ? rawDateStr.split('T')[0] : rawDateStr;
 
-             // Match tanggal (mengabaikan jam)
-             const match = tempData.find(c => 
-               c.dateObj && c.dateObj.toDateString() === txDate.toDateString()
-             );
-
-             if (match) {
-               if (tx.type === 'income' || tx.amount > 0) {
-                   match.Income += Math.abs(tx.amount);
+             if (chartMap[txDateKey]) {
+               const amount = Number(tx.amount);
+               if (tx.type === 'income' || amount > 0) {
+                   chartMap[txDateKey].Income += Math.abs(amount);
                } else {
-                   match.Expense += Math.abs(tx.amount);
+                   chartMap[txDateKey].Expense += Math.abs(amount);
                }
              }
           });
-
-          // Hapus properti dateObj sebelum set state
-          setChartData(tempData.map(({ dateObj, ...rest }) => rest));
+          
+          setChartData(Object.values(chartMap));
         }
       } catch (error) {
         console.error("Error loading finance:", error);
       }
     };
+
     loadData();
   }, []);
 
@@ -204,13 +243,13 @@ const MainContent = memo(() => {
                 key={task.id} 
                 title={task.title} 
                 dueDate={task.date} 
-                priority={task.priority} 
+                priority={task.priority} // Priority sudah otomatis benar dari DB
                 startDate={String(task.id)} 
               />
             ))
           ) : (
             <div className="col-span-full bg-white p-6 rounded-2xl border border-gray-100 text-center text-gray-500 text-sm">
-              No assignments.
+              Tidak ada tugas pending.
             </div>
           )}
         </div>
@@ -240,7 +279,7 @@ const MainContent = memo(() => {
 MainContent.displayName = "MainContent";
 
 // ============================================================================
-// 3. LAYOUT WRAPPER (Gabungkan Main & Sidebar)
+// 3. LAYOUT WRAPPER
 // ============================================================================
 const DashboardLayout = memo(() => {
   return (

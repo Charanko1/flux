@@ -10,7 +10,7 @@ interface Note {
   title: string;
   content: string;
   date: string;
-  color: string; // Pastikan properti color ada
+  color: string; 
   category?: string;
   priority?: string;
 }
@@ -21,10 +21,9 @@ interface NoteDetailModalProps {
   note: Note;
   onDelete: (id: string | number) => void;
   onUpdate: (note: Note) => void;
-  layoutId?: string | null; // Opsional atau bisa null
+  layoutId?: string | null; 
 }
 
-// 3. Pasang Interface di sini
 export default function NoteDetailModal({ onClose, note, onDelete, onUpdate, layoutId }: NoteDetailModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -43,6 +42,7 @@ export default function NoteDetailModal({ onClose, note, onDelete, onUpdate, lay
   };
 
   const handleSave = () => {
+    // Kirim data update ke Parent (NotesPage)
     onUpdate({
       ...note,
       title: editTitle,
@@ -51,13 +51,12 @@ export default function NoteDetailModal({ onClose, note, onDelete, onUpdate, lay
     setIsEditing(false);
   };
 
-  // Kita pake AnimatePresence di parent, jadi komponen ini render kalau ada note
   if (!note) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       
-      {/* 1. BACKDROP (Fade In/Out) */}
+      {/* 1. BACKDROP */}
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -67,21 +66,23 @@ export default function NoteDetailModal({ onClose, note, onDelete, onUpdate, lay
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
       />
       
-      {/* 2. KOTAK MODAL (Morphing dari Layout ID) */}
+      {/* 2. KOTAK MODAL (Morphing Container) */}
       <motion.div 
-        layoutId={layoutId || undefined} // Kunci Morphing
+        layoutId={layoutId || undefined} 
         className="relative w-full max-w-md rounded-xl shadow-2xl flex flex-col h-auto max-h-[80vh] overflow-hidden z-10"
         style={{ backgroundColor: note.color }}
-        transition={{ type: "spring", stiffness: 350, damping: 25 }} // Efek membal halus
+        transition={{ type: "spring", stiffness: 350, damping: 25 }}
       >
-        {/* UBAHAN: Delay dihapus, animasi konten dipercepat biar instant */}
+        
+        {/* 3. ISI KONTEN (Inner Wrapper untuk Animasi Fade Out) */}
+        {/* Ini kuncinya: Isi konten akan hilang (opacity 0) lebih cepat daripada kotak mengecil */}
         <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.1 }} // Cepat banget (100ms)
           className="flex flex-col h-full overflow-y-auto custom-scrollbar"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1, transition: { delay: 0.1 } }} 
+          exit={{ opacity: 0, transition: { duration: 0.05 } }} 
         >
-            {/* Header Actions */}
+            {/* Header Actions (Tombol Edit/Delete/Close) */}
             <div className="absolute top-2 right-2 flex gap-1 z-10">
             {isEditing ? (
                 <button 
@@ -112,17 +113,14 @@ export default function NoteDetailModal({ onClose, note, onDelete, onUpdate, lay
             )}
 
             <button 
-                onClick={() => {
-                    setIsEditing(false);
-                    onClose();
-                }}
+                onClick={onClose}
                 className={`p-1.5 rounded-full transition-all bg-black/5 hover:bg-black/20 ${getTextColor(note.color)}`}
             >
                 <FiX size={16} />
             </button>
             </div>
 
-            {/* Content Wrapper */}
+            {/* Content Body */}
             <div className="p-6 pt-8">
             
             <p className={`text-xs font-medium opacity-60 mb-2 ${getTextColor(note.color)}`}>
@@ -136,7 +134,7 @@ export default function NoteDetailModal({ onClose, note, onDelete, onUpdate, lay
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
                     className={`w-full bg-black/5 border-0 rounded-md p-2 text-xl font-bold mb-2 focus:ring-2 focus:ring-amber-400 outline-none ${getTextColor(note.color)} placeholder-gray-500`}
-                    placeholder="Judul Catatan"
+                    placeholder="Note Title"
                     autoFocus
                 />
                 
@@ -144,12 +142,12 @@ export default function NoteDetailModal({ onClose, note, onDelete, onUpdate, lay
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
                     className={`w-full h-60 bg-black/5 border-0 rounded-md p-2 text-base leading-relaxed resize-none focus:ring-2 focus:ring-amber-400 outline-none custom-scrollbar ${getTextColor(note.color)} placeholder-gray-500`}
-                    placeholder="Isi catatan..."
+                    placeholder="Note content..."
                 />
                 </div>
             ) : (
                 <>
-                {/* UBAHAN: Layout ID pada judul juga dipastikan konsisten */}
+                {/* Judul dengan Layout ID agar morphing teks mulus */}
                 <motion.h2 
                     layoutId={`note-title-${note.id}`} 
                     className={`text-xl font-bold mb-4 leading-tight break-words pr-20 ${getTextColor(note.color)}`}
