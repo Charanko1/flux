@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ArrowLeft,
   TrendingUp,
@@ -9,18 +9,20 @@ import {
   Filter
 } from 'lucide-react';
 
-// Import Types, Helpers, Components
-import { TransactionHistoryPageProps } from './types'; // Sesuaikan path
-import { 
-  parseDateIDN, 
-  formatCurrencyHistory, 
-  getMonthYear 
-} from './TransactionHelpers'; // Sesuaikan path
+// Pastikan path import ini sesuai dengan struktur foldermu
+import { Transaction } from '@/app/dashboard/finance/page'; // Ambil interface dari Parent
+import { formatCurrencyHistory } from '@/utils/formatters'; // Sesuaikan path helper currency
+
 import { 
   HistoryStatsCard, 
   HistoryTransactionItem, 
   FilterDropdown 
-} from './TransactionComponents'; // Sesuaikan path
+} from '@/components/dashboard/finance/TransactionComponents'; // Sesuaikan path
+
+interface TransactionHistoryPageProps {
+  onBack: () => void;
+  transactions: Transaction[]; // Data dari Database via Parent
+}
 
 export default function TransactionHistoryPage({ onBack, transactions }: TransactionHistoryPageProps) {
 
@@ -28,71 +30,71 @@ export default function TransactionHistoryPage({ onBack, transactions }: Transac
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterMonth, setFilterMonth] = useState<string>('all');
 
-  // Statistics Calculation
-  const totalIncome = transactions
-    .filter(tx => tx.amount > 0)
-    .reduce((acc, tx) => acc + tx.amount, 0);
-  const totalExpense = transactions
-    .filter(tx => tx.amount < 0)
-    .reduce((acc, tx) => acc + tx.amount, 0);
+  // --- HELPER SEDERHANA UNTUK TANGGAL (ISO YYYY-MM-DD) ---
+  const getMonthYear = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    // Format: "December 2023"
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
 
-  const countIncome = transactions.filter(tx => tx.amount > 0).length;
-  const countExpense = transactions.filter(tx => tx.amount < 0).length;
+  // --- 1. LOGIC FILTERING & SORTING ---
+  const filteredTransactions = useMemo(() => {
+    return transactions
+      .filter(tx => {
+        // Filter by Type (Pakai field 'type' dari database)
+        const typeMatch = filterType === 'all' || tx.type === filterType;
+        
+        // Filter by Category
+        const categoryMatch = filterCategory === 'all' || tx.category === filterCategory;
+        
+        // Filter by Month
+        const monthMatch = filterMonth === 'all' || getMonthYear(tx.date) === filterMonth;
 
-  // 1. Options: Type
+        return typeMatch && categoryMatch && monthMatch;
+      })
+      .sort((a, b) => {
+        // Sorting Date (Terbaru ke Terlama)
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      });
+  }, [transactions, filterType, filterCategory, filterMonth]);
+
+  // --- 2. LOGIC STATISTIK (Dihitung dari hasil filter) ---
+  const totalIncome = filteredTransactions
+    .filter(tx => tx.type === 'income')
+    .reduce((acc, tx) => acc + Math.abs(tx.amount), 0);
+
+  const totalExpense = filteredTransactions
+    .filter(tx => tx.type === 'expense')
+    .reduce((acc, tx) => acc + Math.abs(tx.amount), 0); // Pakai Math.abs biar positif di kartu
+
+  const countIncome = filteredTransactions.filter(tx => tx.type === 'income').length;
+  const countExpense = filteredTransactions.filter(tx => tx.type === 'expense').length;
+
+  // --- 3. OPTIONS UTILS ---
   const typeOptions = [
     { value: 'all', label: 'All Type' },
     { value: 'income', label: 'Income' },
     { value: 'expense', label: 'Expense' }
   ];
 
-  // 2. Options: Category
+  // Ambil kategori unik dari data yang ada
   const uniqueCategories = Array.from(new Set(transactions.map(tx => tx.category))).sort();
   const categoryOptions = [
     { value: 'all', label: 'All Category' },
     ...uniqueCategories.map(cat => ({ value: cat, label: cat }))
   ];
 
-  // 3. Options: Month
-  const sortedTxForMonths = [...transactions].sort((a, b) => {
-    const dateA = parseDateIDN(a.date);
-    const dateB = parseDateIDN(b.date);
-    const timeA = dateA ? dateA.getTime() : 0;
-    const timeB = dateB ? dateB.getTime() : 0;
-    return timeB - timeA;
-  });
-  
+  // Ambil bulan unik dari data yang ada
   const uniqueMonths = Array.from(new Set(
-    sortedTxForMonths
-      .map(tx => getMonthYear(tx.date))
-      .filter(m => m !== '') 
-  ));
+    transactions.map(tx => getMonthYear(tx.date))
+  )).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()); // Sort bulan terbaru
   
   const monthOptions = [
     { value: 'all', label: 'All Months' },
     ...uniqueMonths.map(m => ({ value: m, label: m }))
   ];
 
-  // Filter Logic
-  const filteredTransactions = transactions
-    .filter(tx => {
-      const typeMatch = filterType === 'all' ||
-                        (filterType === 'income' && tx.amount >= 0) ||
-                        (filterType === 'expense' && tx.amount < 0);
-      
-      const categoryMatch = filterCategory === 'all' || tx.category === filterCategory;
-      const monthMatch = filterMonth === 'all' || getMonthYear(tx.date) === filterMonth;
-
-      return typeMatch && categoryMatch && monthMatch;
-    })
-    .sort((a, b) => {
-      const dateA = parseDateIDN(a.date);
-      const dateB = parseDateIDN(b.date);
-      const timeA = dateA ? dateA.getTime() : 0;
-      const timeB = dateB ? dateB.getTime() : 0;
-      return timeB - timeA;
-    });
-  
   return (
     <div className="bg-gray-100 font-inter min-h-screen w-full">
       <main className="p-3 md:p-5 w-full">
@@ -118,7 +120,8 @@ export default function TransactionHistoryPage({ onBack, transactions }: Transac
         <div className="mb-3 grid grid-cols-1 gap-2 md:gap-3 md:grid-cols-3">
           <HistoryStatsCard
             title="Total Income"
-            amount={`Rp ${formatCurrencyHistory(totalIncome)}`}
+            // Pastikan ada helper formatCurrencyHistory atau pakai toLocaleString
+            amount={`Rp ${totalIncome.toLocaleString('id-ID')}`} 
             description={`${countIncome} transactions`}
             icon={<TrendingUp className="h-4 w-4 md:h-5 md:w-5" />}
             iconBgColor="bg-green-100"
@@ -126,7 +129,7 @@ export default function TransactionHistoryPage({ onBack, transactions }: Transac
           />
           <HistoryStatsCard
             title="Total Expense"
-            amount={`Rp ${formatCurrencyHistory(totalExpense)}`}
+            amount={`Rp ${totalExpense.toLocaleString('id-ID')}`}
             description={`${countExpense} transactions`}
             icon={<TrendingDown className="h-4 w-4 md:h-5 md:w-5" />}
             iconBgColor="bg-red-100"
@@ -134,8 +137,8 @@ export default function TransactionHistoryPage({ onBack, transactions }: Transac
           />
           <HistoryStatsCard
             title="Total Transactions"
-            amount={transactions.length.toString()}
-            description="All time"
+            amount={filteredTransactions.length.toString()}
+            description={filterMonth === 'all' ? "All time" : filterMonth}
             icon={<CalendarDays className="h-4 w-4 md:h-5 md:w-5" />}
             iconBgColor="bg-gray-100"
             iconColor="text-gray-600"
@@ -184,6 +187,7 @@ export default function TransactionHistoryPage({ onBack, transactions }: Transac
             <div className="divide-y divide-gray-200">
               {filteredTransactions.length > 0 ? (
                 filteredTransactions.map((tx) => (
+                  // Pastikan key unique, pakai _id dari mongoDB atau id
                   <HistoryTransactionItem key={tx.id} transaction={tx} />
                 ))
               ) : (

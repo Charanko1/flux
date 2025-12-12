@@ -21,13 +21,21 @@ import {
   ArrowDownRight,
   ArrowUpCircle,
   ArrowDownCircle,
-  Loader2, // Icon loading
+  Loader2,
 } from "lucide-react";
 import { motion, Variants } from "framer-motion"; 
 import { parseDateIDN } from "@/lib/utils";
-import { TransactionData } from "./AddTransaction"; 
 
-// ... (BAGIAN CONFIGURATION & HELPERS TETAP SAMA, TIDAK ADA UBAHAN) ...
+// --- DEFINISI TIPE DATA (Biar tidak perlu import silang) ---
+export interface TransactionData {
+  id: number | string;
+  type: 'income' | 'expense';
+  title: string;
+  category: string;
+  amount: number;
+  date: string;
+}
+
 const PIE_COLORS = [
   "#facc15", "#374151", "#4f46e5", "#60a5fa", "#16a34a", "#dc2626", "#9333ea",
 ];
@@ -55,17 +63,16 @@ const containerVariants: Variants = {
   }
 };
 
-// 3. Tambahkan ': Variants' disini juga
 const itemVariants: Variants = {
   hidden: { opacity: 0, y: 10 }, 
   visible: { 
     opacity: 1, 
     y: 0,
-    transition: { type: "tween", ease: "easeOut", duration: 0.3 } // Error hilang!
+    transition: { type: "tween", ease: "easeOut", duration: 0.3 }
   }
 };
 
-// ... (STAT CARD & TRANSACTION ITEM TETAP SAMA) ...
+// --- COMPONENTS KECIL ---
 interface DashboardStatCardProps {
   title: string; amount: string; subtitle: string; icon: React.ReactNode; amountClassName?: string;
 }
@@ -104,18 +111,13 @@ const DashboardTransactionItem = React.memo(({ type, title, category, amount, da
   );
 });
 
-// ==================================================================
-// MEMOIZED CHARTS (OPTIMIZED)
-// ==================================================================
-// OPTIMASI 1: Matikan animasi internal Recharts (isAnimationActive={false})
-// agar tidak bentrok dengan Framer Motion.
-
+// --- CHART COMPONENTS (DIPERBAIKI: Width & Height 100%) ---
 interface BarChartData { name: string; Income: number; Expense: number; [key: string]: any; }
 interface PieChartData { name: string; value: number; percent: number; [key: string]: any; }
 
 const MemoBarChart = React.memo(function MemoBarChart({ data }: { data: BarChartData[] }) {
   return (
-    <ResponsiveContainer>
+    <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
         <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={10} tickMargin={10} />
         <YAxis axisLine={false} tickLine={false} fontSize={10} tickFormatter={(v) => (v === 0 ? "0" : `${v / 1000}k`)} />
@@ -126,10 +128,9 @@ const MemoBarChart = React.memo(function MemoBarChart({ data }: { data: BarChart
             name,
           ]}
           labelFormatter={(label) => `Date: ${label}`}
-          cursor={{ fill: 'transparent' }} // Hilangkan highlight bar background agar lebih ringan
+          cursor={{ fill: 'transparent' }}
         />
         <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }} />
-        {/* PENTING: isAnimationActive={false} */}
         <Bar dataKey="Income" fill="#22c55e" radius={[4, 4, 0, 0]} barSize={10} isAnimationActive={false} />
         <Bar dataKey="Expense" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={10} isAnimationActive={false} />
       </BarChart>
@@ -139,12 +140,12 @@ const MemoBarChart = React.memo(function MemoBarChart({ data }: { data: BarChart
 
 const MemoPieChart = React.memo(function MemoPieChart({ data }: { data: PieChartData[] }) {
   return (
-    <ResponsiveContainer>
+    <ResponsiveContainer width="100%" height="100%">
       <PieChart>
         <Pie
           data={data} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={2}
           dataKey="value" labelLine={false} label={renderCustomizedLabel}
-          isAnimationActive={false} // PENTING: Matikan animasi internal
+          isAnimationActive={false}
         >
           {data.map((entry, index) => (
             <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} strokeWidth={1} />
@@ -167,26 +168,22 @@ interface DashboardContentProps {
 }
 
 export default function DashboardContent({ onAddTransaction, onShowHistory, transactions }: DashboardContentProps) {
-  // OPTIMASI 2: Lazy Load Chart
-  // Kita beri jeda sedikit sebelum merender chart agar animasi halaman selesai dulu.
   const [isChartReady, setIsChartReady] = useState(false);
 
   useEffect(() => {
-    // Tunggu 400ms (kurang lebih durasi animasi halaman selesai)
     const timer = setTimeout(() => {
       setIsChartReady(true);
     }, 400);
     return () => clearTimeout(timer);
   }, []);
 
-  // --- Memoized calculations (SAMA SEPERTI SEBELUMNYA) ---
   const formatCurrency = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(Math.abs(value)).replace("IDR", "Rp");
   const formatBalance = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(value).replace("IDR", "Rp");
 
   const { totalIncome, totalExpense, totalBalance } = useMemo(() => {
-    const income = transactions.filter((t) => t.amount > 0).reduce((acc, t) => acc + t.amount, 0);
-    const expense = transactions.filter((t) => t.amount < 0).reduce((acc, t) => acc + t.amount, 0);
-    return { totalIncome: income, totalExpense: expense, totalBalance: income + expense };
+    const income = transactions.filter((t) => t.type === 'income').reduce((acc, t) => acc + Math.abs(t.amount), 0);
+    const expense = transactions.filter((t) => t.type === 'expense').reduce((acc, t) => acc + Math.abs(t.amount), 0);
+    return { totalIncome: income, totalExpense: expense, totalBalance: income - expense };
   }, [transactions]);
 
   const formattedBalance = useMemo(() => formatBalance(totalBalance), [totalBalance]);
@@ -196,6 +193,7 @@ export default function DashboardContent({ onAddTransaction, onShowHistory, tran
   const dynamicPieChartData = useMemo(() => {
     const map: Record<string, number> = {};
     for (const tx of transactions) {
+      if (tx.type !== 'expense') continue; // Hanya hitung Expense untuk Pie Chart
       const key = tx.category || "Others";
       if (!map[key]) map[key] = 0;
       map[key] += Math.abs(tx.amount);
@@ -204,22 +202,33 @@ export default function DashboardContent({ onAddTransaction, onShowHistory, tran
     return Object.entries(map).map(([name, value]) => ({ name, value, percent: total > 0 ? (value / total) * 100 : 0 }));
   }, [transactions]);
 
+  // --- LOGIC CHART (PERBAIKAN UTAMA: DATE MATCHING) ---
   const dynamicBarChartData = useMemo(() => {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const today = new Date(); 
+    today.setHours(0, 0, 0, 0);
     const dayFormatter = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short" });
+    
     interface TempChartData { name: string; dateObj: Date; Income: number; Expense: number; [key: string]: any; }
     const chartData: TempChartData[] = [];
+
+    // 1. Buat kerangka 7 hari
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today); d.setDate(today.getDate() - i);
       chartData.push({ name: dayFormatter.format(d), dateObj: d, Income: 0, Expense: 0 });
     }
-    const sevenAgo = chartData[0].dateObj;
+
+    // 2. Isi Data
     for (const tx of transactions) {
       const txDate = parseDateIDN(tx.date);
-      if (!txDate || txDate < sevenAgo) continue;
-      const match = chartData.find((c) => c.dateObj.getTime() === txDate.getTime());
-      if (!match) continue;
-      if (tx.amount > 0) match.Income += tx.amount; else match.Expense += Math.abs(tx.amount);
+      if (!txDate) continue;
+
+      // PENTING: Gunakan .toDateString() agar jam/menit diabaikan
+      const match = chartData.find((c) => c.dateObj.toDateString() === txDate.toDateString());
+      
+      if (match) {
+        if (tx.type === 'income') match.Income += Math.abs(tx.amount);
+        else match.Expense += Math.abs(tx.amount);
+      }
     }
     return chartData.map(({ dateObj, ...rest }) => rest);
   }, [transactions]);
@@ -231,7 +240,6 @@ export default function DashboardContent({ onAddTransaction, onShowHistory, tran
     }).slice(0, 5);
   }, [transactions]);
 
-  // CSS Optimization: will-change memberi tahu browser untuk optimasi GPU
   const chartWrapperStyle: React.CSSProperties = {
     contain: "strict",
     willChange: "transform",
@@ -267,7 +275,7 @@ export default function DashboardContent({ onAddTransaction, onShowHistory, tran
         <DashboardStatCard title="Total Balance" amount={formattedBalance} subtitle="Current balance" icon={<CalendarDays className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />} />
       </motion.div>
 
-      {/* CHART GRID (DENGAN LAZY LOADING) */}
+      {/* CHART GRID */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-5 gap-3 mb-3">
         {/* BAR CHART */}
         <div className="lg:col-span-3 bg-white p-3 md:p-4 rounded-lg shadow-sm border border-gray-100">
@@ -276,7 +284,6 @@ export default function DashboardContent({ onAddTransaction, onShowHistory, tran
             {isChartReady ? (
                <MemoBarChart data={dynamicBarChartData} />
             ) : (
-               /* Loading Skeleton Sederhana */
                <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded animate-pulse">
                  <Loader2 className="w-6 h-6 text-gray-300 animate-spin" />
                </div>
@@ -286,7 +293,7 @@ export default function DashboardContent({ onAddTransaction, onShowHistory, tran
 
         {/* PIE CHART */}
         <div className="lg:col-span-2 bg-white p-3 md:p-4 rounded-lg shadow-sm border border-gray-100">
-          <h3 className="text-sm md:text-base font-semibold text-gray-900 mb-2 md:mb-3">Categories</h3>
+          <h3 className="text-sm md:text-base font-semibold text-gray-900 mb-2 md:mb-3">Expense Categories</h3>
           <div className="h-[220px] md:h-[250px] w-full" style={chartWrapperStyle}>
             {isChartReady ? (
               dynamicPieChartData.length > 0 ? <MemoPieChart data={dynamicPieChartData} /> : <div className="flex items-center justify-center h-full text-xs md:text-sm text-gray-500">No data available</div>
