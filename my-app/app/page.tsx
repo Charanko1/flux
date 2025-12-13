@@ -32,8 +32,8 @@ export default function LandingPage() {
     // Perintah ini nyuruh browser: "Eh, tolong download-in halaman login & register
     // diem-diem di background SEKARANG."
     // Hasilnya: Pas user klik tombol Login, halamannya udah siap 100%.
-    router.prefetch("/auth/login");
-    router.prefetch("/auth/register");
+    router.prefetch("/login");
+    router.prefetch("/register");
   }, [router]);
 
   return (

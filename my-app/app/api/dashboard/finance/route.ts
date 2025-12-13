@@ -1,74 +1,100 @@
-// File: app/api/finance/route.ts
-import { NextResponse } from 'next/server';
-import connectDB from '@/lib/mongodb';
-import FinanceTransaction from '@/models/Finance';
-import jwt from 'jsonwebtoken'; // Pastikan install: npm i jsonwebtoken @types/jsonwebtoken
-import { cookies } from 'next/headers'; // Cara baca cookie di Next.js App Router
+import { NextResponse } from "next/server";
+import connectDB from "@/lib/mongodb";
+import FinanceTransaction from "@/models/Finance";
+import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
 
-// Helper function untuk cek user dari token
+// Ambil userId dari cookie "session"
 async function getUserIdFromSession() {
   const cookieStore = await cookies();
-  const token = cookieStore.get('session')?.value; // Sesuai nama cookie di login Anda ('session')
-
+  const token = cookieStore.get("session")?.value;
   if (!token) return null;
 
   try {
     const secret = process.env.JWT_SECRET || "";
-    // Decode token untuk ambil data user
     const decoded: any = jwt.verify(token, secret);
-    return decoded.id; // Sesuai payload login Anda: { id: user._id, ... }
+    return decoded.id as string;
   } catch (error) {
     return null;
   }
 }
 
+// GET /api/dashboard/finance
 export async function GET(request: Request) {
   try {
     await connectDB();
 
-    // 1. AMBIL ID USER ASLI DARI COOKIE
     const userId = await getUserIdFromSession();
-
-    // 2. JIKA BELUM LOGIN / TOKEN INVALID
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized: Silakan login dulu' }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized: Silakan login dulu" },
+        { status: 401 }
+      );
     }
 
-    // 3. AMBIL DATA MILIK USER TERSEBUT SAJA
     const data = await FinanceTransaction.find({ userId }).sort({ date: -1 });
 
-    return NextResponse.json(data);
+    const normalized = data.map((item: any) => {
+      const rawType = (item.type || "").toString().toLowerCase();
+      const normalizedType =
+        rawType === "expense" ? "expense" : "income";
+
+      return {
+        ...item.toObject(),
+        type: normalizedType,
+        amount: Math.abs(item.amount ?? 0),
+      };
+    });
+
+    return NextResponse.json(normalized);
   } catch (error) {
-    return NextResponse.json({ error: 'Gagal mengambil data' }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal mengambil data" },
+      { status: 500 }
+    );
   }
 }
 
+// POST /api/dashboard/finance
 export async function POST(request: Request) {
   try {
     await connectDB();
 
-    // 1. AMBIL ID USER ASLI
     const userId = await getUserIdFromSession();
-
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
-    const { title, amount, category, date, type } = body;
+    let { title, amount, category, date, type } = body;
 
-    // 2. SIMPAN DENGAN ID USER YANG SEDANG LOGIN
+    const rawType = (type || "").toString().toLowerCase();
+    const normalizedType =
+      rawType === "expense" ? "expense" : "income";
+
+    const numericAmount = Number(amount);
+    const finalAmount = isNaN(numericAmount) ? 0 : Math.abs(numericAmount);
+
     const newData = await FinanceTransaction.create({
-      userId, // <-- User ID otomatis terisi
+      userId,
       title,
-      amount,
+      amount: finalAmount,
       category,
       date,
-      type
+      type: normalizedType,
     });
 
-    return NextResponse.json(newData, { status: 201 });
+    const responseObj = {
+      ...newData.toObject(),
+      type: normalizedType,
+      amount: finalAmount,
+    };
+
+    return NextResponse.json(responseObj, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: 'Gagal menyimpan data' }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal menyimpan data" },
+      { status: 500 }
+    );
   }
 }

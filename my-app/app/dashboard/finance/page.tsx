@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import DashboardContent from '@/components/dashboard/finance/Dashboard';
-import AddTransactionPage from '@/components/dashboard/finance/AddTransaction';
-import TransactionHistoryPage from '@/components/dashboard/finance/TransactionHistory';
+import React, { useState, useEffect } from "react";
+import DashboardContent from "@/components/dashboard/finance/Dashboard";
+import AddTransactionPage from "@/components/dashboard/finance/AddTransaction";
+import TransactionHistoryPage from "@/components/dashboard/finance/TransactionHistory";
 
 export interface Transaction {
   id: string | number;
@@ -11,27 +11,36 @@ export interface Transaction {
   amount: number;
   category: string;
   date: string;
-  type: 'income' | 'expense';
+  type: "income" | "expense";
 }
 
 export default function FinancePage() {
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [currentPage, setCurrentPage] = useState<
+    "dashboard" | "addTransaction" | "history"
+  >("dashboard");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 1. FETCH DATA (GET) SAAT HALAMAN DIBUKA
+  // GET data saat halaman dibuka
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
-        const response = await fetch('/api/dashboard/finance');
+        const response = await fetch("/api/dashboard/finance");
         if (response.ok) {
           const data = await response.json();
-          // Mapping _id dari MongoDB ke id untuk Frontend
-          const formattedData = data.map((item: any) => ({
-            ...item,
-            id: item._id, 
-            date: new Date(item.date).toISOString().split('T')[0]
-          }));
+          const formattedData: Transaction[] = data.map((item: any) => {
+            const rawType = (item.type || "").toString().toLowerCase();
+            const normalizedType =
+              rawType === "expense" ? "expense" : "income";
+
+            return {
+              ...item,
+              id: item._id,
+              amount: Math.abs(item.amount ?? 0),
+              date: new Date(item.date).toISOString().split("T")[0],
+              type: normalizedType,
+            };
+          });
           setTransactions(formattedData);
         }
       } catch (error) {
@@ -44,21 +53,18 @@ export default function FinancePage() {
     fetchTransactions();
   }, []);
 
-  // 2. FUNGSI SIMPAN DATA (POST)
+  // POST / simpan data baru
   const handleSaveTransaction = async (newTransaction: Transaction) => {
-    // A. Optimistic Update (Tampilkan dulu di UI biar cepat)
     const tempId = Math.random().toString();
-    const optimisticData = { ...newTransaction, id: tempId };
-    
-    // Tambah ke state local dulu
+    const optimisticData: Transaction = { ...newTransaction, id: tempId };
+
     setTransactions((prev) => [optimisticData, ...prev]);
-    setCurrentPage('dashboard');
+    setCurrentPage("dashboard");
 
     try {
-      // B. Kirim ke Backend API
-      const response = await fetch('/api/dashboard/finance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/dashboard/finance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: newTransaction.title,
           amount: newTransaction.amount,
@@ -70,17 +76,29 @@ export default function FinancePage() {
 
       if (response.ok) {
         const savedData = await response.json();
-        // C. Update ID sementara (tempId) jadi ID asli database (_id)
-        setTransactions((prev) => 
-          prev.map((t) => (t.id === tempId ? { ...savedData, id: savedData._id } : t))
+        const rawType = (savedData.type || "").toString().toLowerCase();
+        const normalizedType =
+          rawType === "expense" ? "expense" : "income";
+
+        setTransactions((prev) =>
+          prev.map((t) =>
+            t.id === tempId
+              ? {
+                  ...t,
+                  ...savedData,
+                  id: savedData._id,
+                  amount: Math.abs(savedData.amount ?? 0),
+                  date: new Date(savedData.date).toISOString().split("T")[0],
+                  type: normalizedType,
+                }
+              : t
+          )
         );
       } else {
-        // Jika server error, hapus data dari UI
         console.error("Gagal menyimpan ke server");
         setTransactions((prev) => prev.filter((t) => t.id !== tempId));
       }
     } catch (error) {
-      // Jika koneksi error, hapus data dari UI
       console.error("Error jaringan:", error);
       setTransactions((prev) => prev.filter((t) => t.id !== tempId));
     }
@@ -96,25 +114,25 @@ export default function FinancePage() {
     }
 
     switch (currentPage) {
-      case 'dashboard':
+      case "dashboard":
         return (
           <DashboardContent
-            onAddTransaction={() => setCurrentPage('addTransaction')}
-            onShowHistory={() => setCurrentPage('history')}
+            onAddTransaction={() => setCurrentPage("addTransaction")}
+            onShowHistory={() => setCurrentPage("history")}
             transactions={transactions}
           />
         );
-      case 'addTransaction':
+      case "addTransaction":
         return (
           <AddTransactionPage
-            onBack={() => setCurrentPage('dashboard')}
-            onSaveTransaction={handleSaveTransaction}
+            onBack={() => setCurrentPage("dashboard")}
+            onSaveTransaction={handleSaveTransaction as any}
           />
         );
-      case 'history':
+      case "history":
         return (
           <TransactionHistoryPage
-            onBack={() => setCurrentPage('dashboard')}
+            onBack={() => setCurrentPage("dashboard")}
             transactions={transactions}
           />
         );
