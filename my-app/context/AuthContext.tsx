@@ -3,12 +3,14 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+// ✅ UPDATE: Tambahkan avatarUrl di sini agar dikenali TypeScript
 export interface UserType {
   _id: string;
   name: string;
   username?: string;
   email: string;
   role?: string;
+  avatarUrl?: string; // <--- INI YANG BARU
 }
 
 interface AuthContextType {
@@ -71,7 +73,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const updatedUser: UserType = {
       ...user,
       ...data,
-      name: data.username ?? user.name, // biar sidebar langsung ikut berubah
+      // ⚠️ PERBAIKAN LOGIKA KECIL:
+      // Pastikan name diambil dari data.name (jika ada), kalau tidak baru pakai user.name lama
+      name: data.name ?? user.name, 
     };
 
     // Simpan ke state dan localStorage

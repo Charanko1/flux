@@ -1,7 +1,6 @@
-// File: app/register/page.tsx (FIXED)
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FaUser, FaLock, FaEye, FaEyeSlash, FaFacebook } from "react-icons/fa";
@@ -11,17 +10,20 @@ import Image from "next/image";
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react"; 
 
-// --- FIX 1: Definisikan tipe untuk SocialLoading agar tidak error ---
+// 👇 IMPORT WAJIB BUAT GOOGLE & LOGIN
+import { signIn, useSession } from "next-auth/react";
+import { useAuth } from "@/context/AuthContext";
+
+// --- TYPE DEFINITIONS ---
 type SocialLoading = "google" | "facebook" | "none";
 
-// Definisikan tipe untuk Form
 interface FormData {
   name: string;
   email: string;
   password: string;
 }
 
-// --- VARIAN ANIMASI (TIDAK DIUBAH) ---
+// --- VARIAN ANIMASI (FULL) ---
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
@@ -44,11 +46,17 @@ const itemVariants: Variants = {
 
 const Spinner = () => (
   <div className="flex items-center justify-center">
+    <Loader2 className="animate-spin h-4 w-4 text-amber-500" />
+  </div>
+);
+
+const SpinnerWhite = () => (
+  <div className="flex items-center justify-center">
     <Loader2 className="animate-spin h-4 w-4 text-white" />
   </div>
 );
 
-// --- COMPONENT BACKGROUND (TIDAK DIUBAH) ---
+// --- COMPONENT BACKGROUND (FULL) ---
 const FluxBackground = () => (
   <div className="absolute inset-0 grid grid-cols-6 pointer-events-none select-none h-full">
     <div className="bg-gradient-to-b from-[#FFCB74] to-[#E6AE47]" />
@@ -60,11 +68,11 @@ const FluxBackground = () => (
   </div>
 );
 
-// --- KOMPONEN INPUT OTP TERPISAH (FIXED & STYLED) ---
+// --- KOMPONEN INPUT OTP (FULL LOGIC - FIXED) ---
 const OTP_LENGTH = 6;
 
 const OtpInputs = ({ otp, setOtp, disabled }: { otp: string, setOtp: (otp: string) => void, disabled: boolean }) => {
-  // FIX: Inisialisasi useRef dengan tipe yang aman
+  // FIX: Inisialisasi useRef dengan tipe yang aman (Sesuai kode Abang)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const otpArray = useMemo(() => otp.padEnd(OTP_LENGTH, ' ').split('').slice(0, OTP_LENGTH), [otp]);
@@ -81,26 +89,25 @@ const OtpInputs = ({ otp, setOtp, disabled }: { otp: string, setOtp: (otp: strin
         inputRefs.current[index + 1]?.focus();
       }
     } else {
-       // Handle backspace di kotak kosong -> pindah ke kotak sebelumnya
-       // Menggunakan casting 'as any' atau cek properti untuk menghindari error TS pada InputEvent
+       // Handle backspace di kotak kosong
        const nativeEvent = e.nativeEvent as any;
        if (nativeEvent.inputType === 'deleteContentBackward') {
          const newOtp = otpArray.map((v, i) => (i === index ? '' : v)).join('').trim();
          setOtp(newOtp);
          
          if (index > 0) {
-            inputRefs.current[index - 1]?.focus();
+           inputRefs.current[index - 1]?.focus();
          }
        } else {
-          // Hapus digit saat ini
-          const newOtp = otpArray.map((v, i) => (i === index ? '' : v)).join('').trim();
-          setOtp(newOtp);
+         // Hapus digit saat ini
+         const newOtp = otpArray.map((v, i) => (i === index ? '' : v)).join('').trim();
+         setOtp(newOtp);
        }
     }
   };
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
-    // Jika backspace ditekan pada kotak yang sudah kosong, pindah ke kotak sebelumnya
+    // Logic Backspace Khusus
     if (e.key === 'Backspace' && index > 0 && otpArray[index] === ' ') {
       inputRefs.current[index - 1]?.focus();
     }
@@ -146,7 +153,11 @@ const OtpInputs = ({ otp, setOtp, disabled }: { otp: string, setOtp: (otp: strin
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { login } = useAuth(); // Ambil fungsi login manual dari context
   
+  // 1. Setup NextAuth (Google)
+  const { data: session, status: googleStatus } = useSession();
+
   const [formData, setFormData] = useState<FormData>({
     name: "", 
     email: "",
@@ -154,13 +165,23 @@ export default function RegisterPage() {
   });
   
   const [otp, setOtp] = useState('');
-  
   const [step, setStep] = useState<'REGISTER' | 'OTP'>('REGISTER');
   const [isLoading, setIsLoading] = useState(false);
-  // FIX: Type SocialLoading sekarang sudah dikenali
   const [socialLoading, setSocialLoading] = useState<SocialLoading>("none");
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  // 🔥 2. AUTO SYNC: Token Google -> LocalStorage -> Dashboard
+  useEffect(() => {
+    if (googleStatus === "authenticated" && session) {
+      // @ts-ignore
+      const token = session.accessToken;
+      if (token) {
+         login(token); // Simpan token ke LocalStorage
+         router.push("/dashboard"); // Redirect paksa
+      }
+    }
+  }, [googleStatus, session, login, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -218,23 +239,39 @@ export default function RegisterPage() {
 
       if (!res.ok) throw new Error(data.error || 'Verification failed');
 
-      // SUKSES VERIFIKASI: Langsung redirect ke Login
-      router.push('/auth/login'); 
+      // SUKSES VERIFIKASI: Login Manual
+      if (data.token) {
+          login(data.token);
+          router.push('/dashboard');
+      } else {
+          router.push('/auth/login'); 
+      }
     } catch (err: any) {
-      // FIX: Fallback error message jika err.message undefined
       setError(err.message || "Terjadi kesalahan saat verifikasi.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  // --- LOGIC 3: SOCIAL LOGIN (Updated for NextAuth) ---
   const handleSocialLogin = (provider: "google" | "facebook") => {
-    if (isLoading || socialLoading !== "none") return;
+    if (isLoading || socialLoading !== "none" || googleStatus === "loading") return;
+    
     setSocialLoading(provider);
-    alert(`Social login for ${provider} clicked. Need NextAuth setup.`);
-    setSocialLoading("none");
+    
+    if (provider === "google") {
+        // Panggil SignIn dari NextAuth
+        signIn("google", { callbackUrl: "/dashboard" });
+    } else {
+        // Facebook Placeholder
+        setTimeout(() => {
+            alert("Facebook login coming soon!");
+            setSocialLoading("none");
+        }, 1000);
+    }
   };
 
+  const isWorking = isLoading || googleStatus === "loading" || socialLoading !== "none";
 
   // =================================================================================
   // --- COMPONENT RENDER HELPER ---
@@ -259,7 +296,7 @@ export default function RegisterPage() {
           placeholder="Full Name"
           value={formData.name}
           onChange={handleChange}
-          disabled={isLoading}
+          disabled={isWorking}
           className="border border-gray-200 bg-gray-50/50 lg:bg-white py-2.5 pl-10 rounded-xl w-full text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition-all shadow-sm lg:shadow-sm"
           required
         />
@@ -274,7 +311,7 @@ export default function RegisterPage() {
           placeholder="name@gmail.com"
           value={formData.email}
           onChange={handleChange}
-          disabled={isLoading}
+          disabled={isWorking}
           className="border border-gray-200 bg-gray-50/50 lg:bg-white py-2.5 pl-10 rounded-xl w-full text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition-all shadow-sm lg:shadow-sm"
           required
         />
@@ -289,7 +326,7 @@ export default function RegisterPage() {
           placeholder="Create a password"
           value={formData.password}
           onChange={handleChange}
-          disabled={isLoading}
+          disabled={isWorking}
           className="border border-gray-200 bg-gray-50/50 lg:bg-white py-2.5 pl-10 rounded-xl w-full text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 transition-all shadow-sm lg:shadow-sm"
           required
           minLength={8}
@@ -326,9 +363,9 @@ export default function RegisterPage() {
         whileTap={{ scale: 0.98 }}
         type="submit"
         className="bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-md shadow-amber-400/30 py-2 rounded-xl font-semibold text-sm hover:from-amber-500 hover:to-amber-600 disabled:opacity-70 disabled:cursor-not-allowed transition-all mt-2"
-        disabled={isLoading}
+        disabled={isWorking}
       >
-        {isLoading ? <Spinner /> : "Sign Up"}
+        {isLoading ? <SpinnerWhite /> : "Sign Up"}
       </motion.button>
 
       {/* Divider */}
@@ -345,17 +382,17 @@ export default function RegisterPage() {
           whileTap={{ scale: 0.98 }}
           type="button"
           onClick={() => handleSocialLogin("google")}
-          disabled={isLoading || socialLoading !== "none"}
+          disabled={isWorking}
           className="flex-1 flex items-center justify-center gap-2 border border-gray-200 bg-white py-2 rounded-xl text-xs sm:text-sm transition-all disabled:opacity-60 shadow-sm"
         >
-          {socialLoading === "google" ? <Spinner /> : <><FcGoogle size={18} /> <span className="font-medium text-gray-700">Google</span></>}
+          {googleStatus === "loading" || socialLoading === "google" ? <Spinner /> : <><FcGoogle size={18} /> <span className="font-medium text-gray-700">Google</span></>}
         </motion.button>
         <motion.button
           whileHover={{ y: -2, backgroundColor: "#f9fafb" }}
           whileTap={{ scale: 0.98 }}
           type="button"
           onClick={() => handleSocialLogin("facebook")}
-          disabled={isLoading || socialLoading !== "none"}
+          disabled={isWorking}
           className="flex-1 flex items-center justify-center gap-2 border border-gray-200 bg-white py-2 rounded-xl text-xs sm:text-sm transition-all disabled:opacity-60 shadow-sm"
         >
           {socialLoading === "facebook" ? <Spinner /> : <><FaFacebook className="text-blue-600" size={18} /> <span className="font-medium text-gray-700">Facebook</span></>}
@@ -400,7 +437,7 @@ export default function RegisterPage() {
         disabled={isLoading} 
         className="bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-md shadow-amber-400/30 py-3 rounded-xl font-semibold text-sm hover:from-amber-600 hover:to-amber-700 disabled:opacity-70 disabled:cursor-not-allowed transition-all flex justify-center"
       >
-        {isLoading ? <Spinner /> : "Verify Account"}
+        {isLoading ? <SpinnerWhite /> : "Verify Account"}
       </motion.button>
 
     </motion.form>

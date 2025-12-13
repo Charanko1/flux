@@ -1,5 +1,3 @@
-// File: app/api/auth/login/route.ts (FIXED: VERIFICATION CHECK)
-
 import { NextResponse } from 'next/server';
 import connectDB from "@/lib/mongodb";
 import User, { IUser } from "@/models/User"; 
@@ -27,14 +25,12 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: "Email and password are required" }, { status: 400 });
         }
 
-        // FIX: Ambil +isVerified secara eksplisit agar aman
         const user = await User.findOne({ email }).select('+password +isVerified') as IUser | null; 
         
         if (!user) {
             return NextResponse.json({ message: "Invalid credentials." }, { status: 401 }); 
         }
 
-        // Cek Status Verifikasi
         if (!user.isVerified) {
             return NextResponse.json({ 
                 message: "Account not verified. Please check your email.",
@@ -42,16 +38,13 @@ export async function POST(req: Request) {
             }, { status: 403 }); 
         }
 
-        // Verifikasi Password
         const isMatch = await user.matchPassword(password);
         
         if (!isMatch) {
             return NextResponse.json({ message: "Invalid credentials." }, { status: 401 });
         }
 
-        // Buat Token
         const oneDay = 60 * 60 * 24; 
-        const maxAge = rememberMe ? oneDay * 7 : oneDay;
         const jwtExpiresIn = rememberMe ? "7d" : "1d"; 
 
         const token = jwt.sign(
@@ -60,15 +53,22 @@ export async function POST(req: Request) {
             { expiresIn: jwtExpiresIn }
         );
 
+        // --- PERUBAHAN DISINI ---
+        // Kita kirim token di dalam object JSON agar bisa dibaca Frontend
         const response = NextResponse.json(
-            { message: "Login Successful", user: { id: user._id, name: user.name, email: user.email } }, 
+            { 
+                message: "Login Successful", 
+                token: token, // <--- PENTING: Kirim token ke frontend
+                user: { id: user._id, name: user.name, email: user.email } 
+            }, 
             { status: 200 }
         );
 
+        // Tetap set cookie untuk keamanan tambahan / middleware di masa depan
         response.cookies.set('session', token, {
             httpOnly: true, 
             secure: process.env.NODE_ENV === 'production', 
-            maxAge: maxAge, 
+            maxAge: rememberMe ? oneDay * 7 : oneDay, 
             path: '/',
             sameSite: 'lax',
         });

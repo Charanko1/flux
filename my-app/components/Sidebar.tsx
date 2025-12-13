@@ -10,7 +10,7 @@ import {
   Settings,
   ChevronLeft,
   LogOut,
-  X, // Menu icon sudah tidak dipakai disini
+  X,
 } from "lucide-react";
 import MenuItem from "./MenuItem";
 
@@ -22,7 +22,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   const { user, loading, logout } = useAuth();
 
-  // Auto-close on resize
+  // Auto-close on resize (Mobile UX)
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 768) {
@@ -55,9 +55,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     );
   }
 
+  // --- LOGIC AVATAR ---
+  // Gunakan foto dari database jika ada, jika tidak gunakan inisial (UI Avatars)
+  const avatarSrc = user?.avatarUrl
+    ? user.avatarUrl
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        user?.name || "User"
+      )}&background=fbbf24&color=fff&size=128&bold=true`;
+
   return (
     <>
-      {/* --- MOBILE OVERLAY (BACKDROP) --- */}
+      {/* --- MOBILE OVERLAY --- */}
       <div
         className={`
           fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity duration-300
@@ -66,11 +74,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         onClick={() => setIsOpen(false)}
       />
 
-      {/* [DIHAPUS] 
-          Bagian Mobile Hamburger Button yang tadinya ada disini sudah dihapus 
-          karena fungsinya pindah ke Header.
-      */}
-
       {/* --- SIDEBAR MAIN --- */}
       <aside
         className={`
@@ -78,7 +81,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
           bg-white p-3 flex flex-col 
           transition-all duration-300 ease-in-out 
           z-50 border-r border-gray-200
-          ${isOpen ? "w-64 md:w-56 translate-x-0" : "w-64 md:w-16 -translate-x-full md:translate-x-0"}
+          ${
+            isOpen
+              ? "w-64 md:w-56 translate-x-0"
+              : "w-64 md:w-16 -translate-x-full md:translate-x-0"
+          }
         `}
       >
         {/* Toggle Button Desktop */}
@@ -97,22 +104,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
           <ChevronLeft size={14} />
         </button>
 
-        {/* Tombol Close Mobile (Tetap dipertahankan buat nutup dari dalam sidebar) */}
+        {/* Tombol Close Mobile */}
         <div className="flex justify-end md:hidden mb-2">
           <button onClick={() => setIsOpen(false)} className="text-gray-500 p-1">
             <X size={20} />
           </button>
         </div>
 
-        {/* User Profile */}
+        {/* User Profile Section */}
         <div className="flex items-center mb-8 md:pt-3 h-12">
           <div className="relative flex-shrink-0">
             <img
-              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
-                user?.name || "User"
-              )}&background=3b82f6&color=fff&size=64`}
+              src={avatarSrc}
               alt={user?.name || "User Avatar"}
-              className="w-10 h-10 rounded-lg border-2 border-gray-100 shadow-sm object-cover"
+              className="w-10 h-10 rounded-lg border-2 border-gray-100 shadow-sm object-cover bg-gray-50"
             />
             <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
           </div>
@@ -126,15 +131,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             <p className="font-semibold text-sm truncate text-gray-900">
               {user?.name || "Guest"}
             </p>
-            <p className="text-[10px] text-blue-700 font-medium bg-blue-100 px-2 py-0.5 rounded-full inline-block mt-1">
-              {user?.role || "User Role"}
+            <p className="text-[10px] text-amber-700 font-medium bg-amber-100 px-2 py-0.5 rounded-full inline-block mt-1">
+              {user?.username ? `@${user.username}` : user?.role || "User"}
             </p>
           </div>
         </div>
 
         {/* Navigation Links */}
         <nav className="flex-1 space-y-6 overflow-y-auto scrollbar-hide">
-          {/* Group 1 */}
+          {/* Group 1: Main Menu */}
           <div>
             <div
               className={`flex items-center gap-2 mb-2 transition-all duration-200 ease-in-out overflow-hidden ${
@@ -174,7 +179,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             </ul>
           </div>
 
-          {/* Group 2 */}
+          {/* Group 2: Others */}
           <div>
             <div
               className={`flex items-center gap-2 mb-2 transition-all duration-200 ease-in-out overflow-hidden ${
@@ -209,7 +214,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
           `}
           >
             <LogOut size={16} className="flex-shrink-0" />
-
             <span
               className={`
               text-sm font-medium whitespace-nowrap 

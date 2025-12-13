@@ -1,25 +1,28 @@
-// File: models/User.ts
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-// 1. Interface TypeScript untuk Struktur Dokumen
+// 1. Interface TypeScript
 export interface IUser extends Document {
   name: string;
   email: string;
-  password: string; 
+  password: string;
   role: 'user' | 'admin';
   createdAt: Date;
   
-  // --- TAMBAHAN OTP ---
+  // TAMBAHAN BARU
+  username?: string;
+  avatarUrl?: string;
+  googleId?: string; // 👈 TAMBAHAN KHUSUS GOOGLE LOGIN
+
+  // OTP & Verifikasi
   isVerified: boolean;
-  otp?: string; // OTP bisa undefined/null setelah diverifikasi
-  otpExpires?: Date; // Waktu kadaluarsa OTP
-  // --------------------
+  otp?: string;
+  otpExpires?: Date;
   
-  matchPassword(enteredPassword: string): Promise<boolean>; 
+  matchPassword(enteredPassword: string): Promise<boolean>;
 }
 
-// 2. Definisikan Mongoose Schema
+// 2. Schema Mongoose
 const UserSchema: Schema = new Schema({
   name: {
     type: String,
@@ -29,15 +32,19 @@ const UserSchema: Schema = new Schema({
   email: {
     type: String,
     required: [true, 'Email wajib diisi.'],
-    unique: true, 
+    unique: true,
     lowercase: true,
     trim: true,
   },
   password: {
     type: String,
-    required: [true, 'Password wajib diisi.'],
+    // ⚠️ UPDATE LOGIKA VALIDASI:
+    // Password hanya wajib jika user TIDAK punya googleId (Login manual)
+    required: function(this: any) {
+        return !this.googleId; 
+    },
     minlength: [6, 'Password minimal 6 karakter.'],
-    select: false, 
+    select: false,
   },
   role: {
     type: String,
@@ -45,21 +52,38 @@ const UserSchema: Schema = new Schema({
     default: 'user',
   },
   
-  // --- FIELD BARU UNTUK VERIFIKASI EMAIL ---
+  // --- FIELD BARU ---
+  username: {
+    type: String,
+    unique: true,
+    sparse: true, // Membolehkan null/kosong di awal
+    trim: true
+  },
+  avatarUrl: {
+    type: String, // Menyimpan Base64 string atau URL Google
+    default: null
+  },
+  // 👇 FIELD BARU GOOGLE ID
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true,
+    select: false
+  },
+  // ------------------
+
   isVerified: {
     type: Boolean,
-    default: false, // Default: Belum diverifikasi
+    default: false,
   },
   otp: {
     type: String,
-    select: false, // Sembunyikan kode OTP secara default
+    select: false,
   },
   otpExpires: {
     type: Date,
-    select: false, // Sembunyikan waktu kadaluarsa OTP
+    select: false,
   },
-  // -----------------------------------------
-  
   createdAt: {
     type: Date,
     default: Date.now,
@@ -68,13 +92,12 @@ const UserSchema: Schema = new Schema({
     timestamps: false 
 });
 
-// 3. MIDDLEWARE: Hashing Password Sebelum Disimpan
+// 3. Middleware Hash Password
 UserSchema.pre<IUser>('save', async function (next) {
-  // Hanya jalankan jika password yang dimodifikasi (atau saat register)
-  if (!this.isModified('password')) {
+  // Jika password tidak diubah (atau user login via google tanpa password), skip hashing
+  if (!this.isModified('password') || !this.password) {
     return next();
   }
-
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -84,12 +107,13 @@ UserSchema.pre<IUser>('save', async function (next) {
   }
 });
 
-// 4. METODE: Fungsi Membandingkan Password untuk Login
+// 4. Method Match Password
 UserSchema.methods.matchPassword = async function (enteredPassword: string): Promise<boolean> {
+  // Jika user ini user Google (tidak punya password), return false
+  if (!this.password) return false;
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// 5. Ekspor Mongoose Model (Pola Next.js)
 const User = (mongoose.models.User || mongoose.model<IUser>('User', UserSchema)) as Model<IUser>;
 
 export default User;

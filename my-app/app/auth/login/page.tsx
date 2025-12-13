@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useEffect } from "react"; // Tambah useEffect
 import Link from "next/link";
 import Image from "next/image";
 import { FaLock, FaEye, FaEyeSlash, FaFacebook } from "react-icons/fa";
@@ -7,16 +8,46 @@ import { MdOutlineEmail } from "react-icons/md";
 import { FcGoogle } from "react-icons/fc";
 import { motion } from "framer-motion"; 
 
-// Import Logic & Assets yang udah dipisah
+// 👇 Import NextAuth & Context buat "Jembatan"
+import { signIn, useSession } from "next-auth/react";
+import { useAuth } from "@/context/AuthContext";
+
+// Import Logic & Assets
 import { useLogin } from "@/hooks/useLogin"; 
 import { FluxBackground, Spinner, containerVariants, itemVariants } from "@/components/LoginAssets";
 
 export default function LoginPage() {
-  // Panggil Logic di sini (1 baris doang!)
+  // 1. Hook Form Manual (Bawaan Abang)
   const { 
-    form, isLoading, socialLoading, error, showPassword, rememberMe,
-    setRememberMe, setShowPassword, handleChange, handleSubmit, handleSocialLogin 
+    form, isLoading: isManualLoading, error, showPassword, rememberMe,
+    setRememberMe, setShowPassword, handleChange, handleSubmit 
   } = useLogin();
+
+  // 2. Hook NextAuth (Google Login)
+  const { data: session, status } = useSession();
+  const { login } = useAuth(); // Ambil fungsi login dari context
+
+  // 3. 🔥 LOGIC PENYELAMAT: Auto Sync Token Google ke LocalStorage
+  useEffect(() => {
+    if (status === "authenticated" && session) {
+      // @ts-ignore (Abaikan warning typescript dikit, tokennya ada kok)
+      const token = session.accessToken; 
+      
+      if (token) {
+         // Simpan token ke LocalStorage & Update State Global
+         login(token); 
+      }
+    }
+  }, [status, session, login]);
+
+  // 4. Handle Klik Tombol Google
+  const handleGoogleClick = () => {
+    // Redirect ke Google -> Balik lagi ke sini -> Kena useEffect di atas
+    signIn("google", { callbackUrl: "/dashboard" });
+  };
+
+  // Cek loading (Manual atau Google)
+  const isLoading = isManualLoading || status === "loading";
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-white">
@@ -78,8 +109,8 @@ export default function LoginPage() {
           {/* Mobile Branding */}
           <div className="lg:hidden flex flex-col items-center mb-4 text-center">
              <motion.div 
-                initial={{ scale: 0 }} animate={{ scale: 1 }} 
-                className="relative w-16 h-16 mb-2 drop-shadow-md"
+               initial={{ scale: 0 }} animate={{ scale: 1 }} 
+               className="relative w-16 h-16 mb-2 drop-shadow-md"
              >
                 <Image src="/logo2.png" alt="Logo Mobile" fill className="object-contain" />
              </motion.div>
@@ -174,7 +205,7 @@ export default function LoginPage() {
               disabled={isLoading}
               className="bg-amber-400 text-gray-900 py-2.5 rounded-xl font-bold text-sm hover:bg-amber-500 shadow-lg shadow-amber-400/20 disabled:opacity-70 disabled:shadow-none transition-all mt-2"
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isManualLoading ? "Signing in..." : "Sign In"}
             </motion.button>
 
             {/* Divider */}
@@ -186,25 +217,27 @@ export default function LoginPage() {
 
             {/* Social Buttons */}
             <motion.div variants={itemVariants} className="flex flex-row gap-3">
+              {/* TOMBOL GOOGLE */}
               <motion.button
                 whileHover={{ y: -2, backgroundColor: "#f9fafb" }}
                 whileTap={{ scale: 0.98 }}
                 type="button"
-                onClick={() => handleSocialLogin("google")}
-                disabled={isLoading || socialLoading !== "none"}
+                onClick={handleGoogleClick} // 👈 Pake Handler Baru
+                disabled={isLoading}
                 className="flex-1 flex items-center justify-center gap-2 border border-gray-200 bg-white py-2.5 rounded-xl text-sm transition-all disabled:opacity-60 shadow-sm"
               >
-                {socialLoading === "google" ? <Spinner /> : <><FcGoogle size={20} /> <span className="font-medium text-gray-700">Google</span></>}
+                {status === "loading" ? <Spinner /> : <><FcGoogle size={20} /> <span className="font-medium text-gray-700">Google</span></>}
               </motion.button>
+
+              {/* TOMBOL FACEBOOK (Belum ada fungsi) */}
               <motion.button
                 whileHover={{ y: -2, backgroundColor: "#f9fafb" }}
                 whileTap={{ scale: 0.98 }}
                 type="button"
-                onClick={() => handleSocialLogin("facebook")}
-                disabled={isLoading || socialLoading !== "none"}
+                disabled={isLoading}
                 className="flex-1 flex items-center justify-center gap-2 border border-gray-200 bg-white py-2.5 rounded-xl text-sm transition-all disabled:opacity-60 shadow-sm"
               >
-                {socialLoading === "facebook" ? <Spinner /> : <><FaFacebook className="text-blue-600" size={20} /> <span className="font-medium text-gray-700">Facebook</span></>}
+                <FaFacebook className="text-blue-600" size={20} /> <span className="font-medium text-gray-700">Facebook</span>
               </motion.button>
             </motion.div>
 

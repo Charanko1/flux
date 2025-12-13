@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef, useState, createContext, useContext } from "react";
+import React, { useEffect, useRef, useState } from "react";
+// ✅ IMPORT PENTING
+import { useAuth } from "@/context/AuthContext"; 
 import { 
   User as UserIcon, 
   Save, 
@@ -9,20 +11,16 @@ import {
   Trash2, 
   AlertTriangle,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Camera
 } from "lucide-react";
 
-/* --- 1. DEFINISI TIPE DATA (TYPES) --- */
+/* --- 1. DEFINISI TIPE DATA UI --- */
 interface UserData {
   username: string;
   email: string;
   name: string;
   avatarUrl: string | null;
-}
-
-interface AuthContextType {
-  user: UserData;
-  updateUser: (updates: Partial<UserData>) => Promise<UserData>;
 }
 
 interface SettingsCardProps {
@@ -31,6 +29,7 @@ interface SettingsCardProps {
   subtitle: string;
   children: React.ReactNode;
   danger?: boolean;
+  className?: string; 
 }
 
 interface InputFieldProps {
@@ -57,79 +56,50 @@ interface ToggleProps {
   onChange: (checked: boolean) => void;
 }
 
-/* --- MOCK CONTEXT --- */
-// Kita definisikan context bisa null di awal
-const AuthContext = createContext<AuthContextType | null>(null);
+/* --- 2. REUSABLE COMPONENTS (UI) --- */
 
-const MockAuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<UserData>({
-    username: "johndoe",
-    email: "john.doe@example.com",
-    name: "John Doe",
-    avatarUrl: null
-  });
-
-  const updateUser = async (updates: Partial<UserData>) => {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setUser((prev) => ({ ...prev, ...updates }));
-    return { ...user, ...updates };
-  };
-
+function SettingsCard({ icon, title, subtitle, children, danger = false, className = "" }: SettingsCardProps) {
   return (
-    <AuthContext.Provider value={{ user, updateUser }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    // Fallback mock jika provider lupa dipasang
-    return { 
-      user: { username: "guest", email: "guest@example.com", name: "Guest", avatarUrl: null }, 
-      updateUser: async () => ({ username: "guest", email: "guest", name: "Guest", avatarUrl: null }) 
-    };
-  }
-  return context;
-};
-
-/* --- REUSABLE COMPONENTS --- */
-
-function SettingsCard({ icon, title, subtitle, children, danger = false }: SettingsCardProps) {
-  return (
-    <div className={`overflow-hidden rounded-xl border bg-white shadow-sm ${danger ? 'border-red-200' : 'border-gray-200'}`}>
-      <div className={`border-b px-4 py-3 sm:px-6 sm:py-4 flex items-start gap-3 sm:gap-4 ${danger ? 'bg-red-50 border-red-100' : 'bg-white border-gray-100'}`}>
-        <div className={`rounded-lg p-2 shrink-0 ${danger ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
+    <div className={`group h-full overflow-hidden rounded-xl border bg-white transition-all duration-300 hover:shadow-md ${danger ? 'border-red-100 shadow-red-50/50' : 'border-gray-200 shadow-sm'} ${className}`}>
+      <div className="px-5 pt-5 pb-3 flex items-start gap-4">
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors duration-300 ${
+          danger 
+            ? 'bg-red-50 text-red-500 group-hover:bg-red-100' 
+            : 'bg-amber-50 text-amber-500 group-hover:bg-amber-100'
+        }`}>
           {icon}
         </div>
-        <div className="min-w-0">
-          <h3 className={`text-base sm:text-lg font-semibold truncate ${danger ? 'text-red-900' : 'text-gray-900'}`}>{title}</h3>
-          <p className={`text-xs sm:text-sm ${danger ? 'text-red-700' : 'text-gray-500'}`}>{subtitle}</p>
+        <div className="min-w-0 pt-0.5">
+          <h3 className={`text-base sm:text-lg font-bold tracking-tight ${danger ? 'text-red-900' : 'text-gray-900'}`}>
+            {title}
+          </h3>
+          <p className="text-xs sm:text-sm text-gray-500">{subtitle}</p>
         </div>
       </div>
-      <div className="p-4 sm:p-6">{children}</div>
+      <div className="p-5">
+        {children}
+      </div>
     </div>
   );
 }
 
 function InputField({ label, id, type = "text", value, onChange, placeholder, disabled = false }: InputFieldProps) {
   return (
-    <div className="w-full">
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
+    <div className="w-full space-y-1.5">
+      <label htmlFor={id} className="text-sm font-medium text-gray-700 ml-1">
         {label}
       </label>
-      <div>
+      <div className="relative">
         <input
           id={id}
           name={id}
           type={type}
           disabled={disabled}
-          className={`block w-full rounded-lg border px-3 py-2.5 sm:py-2 text-sm shadow-sm focus:outline-none transition-all duration-200 ${
-            disabled 
-              ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-500" 
-              : "border-gray-300 bg-gray-50 text-gray-900 placeholder-gray-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
-          }`}
+          className={`block w-full rounded-lg border px-3 py-2.5 text-sm transition-all duration-200 outline-none
+            ${disabled 
+              ? "bg-gray-50 text-gray-500 border-gray-200 cursor-not-allowed" 
+              : "bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/10 hover:border-gray-300"
+            }`}
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
@@ -140,20 +110,17 @@ function InputField({ label, id, type = "text", value, onChange, placeholder, di
 }
 
 function Button({ children, variant = "primary", icon, className = "", fullWidthMobile = false, ...rest }: ButtonProps) {
-  const baseStyle =
-    "inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed";
-  
+  const baseStyle = "inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold transition-all duration-200 active:scale-95 disabled:opacity-70 disabled:pointer-events-none disabled:active:scale-100";
   const variants = {
-    primary: "border-transparent bg-amber-400 text-black hover:bg-amber-500 focus:ring-amber-300",
-    secondary: "border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-gray-400",
-    danger: "border-transparent bg-red-600 text-white hover:bg-red-700 focus:ring-red-500",
+    primary: "bg-amber-400 text-white shadow-sm shadow-amber-200 hover:bg-amber-500 hover:shadow-md hover:shadow-amber-200/50",
+    secondary: "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300",
+    danger: "bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 hover:border-red-200",
   };
-
   const mobileWidthClass = fullWidthMobile ? "w-full sm:w-auto" : "";
 
   return (
     <button {...rest} className={`${baseStyle} ${variants[variant]} ${mobileWidthClass} ${className}`}>
-      {icon && <span className="mr-2 -ml-1 h-4 w-4">{icon}</span>}
+      {icon && <span className="mr-2 -ml-0.5 opacity-90">{icon}</span>}
       {children}
     </button>
   );
@@ -161,19 +128,19 @@ function Button({ children, variant = "primary", icon, className = "", fullWidth
 
 function Toggle({ label, description, checked, onChange }: ToggleProps) {
   return (
-    <div className="flex items-center justify-between py-3 sm:py-4 first:pt-0 last:pb-0 gap-4">
-      <div className="flex flex-col">
-        <span className="text-sm font-medium text-gray-900">{label}</span>
-        <span className="text-xs sm:text-sm text-gray-500 leading-tight">{description}</span>
+    <div className="flex items-center justify-between py-3 group">
+      <div className="flex flex-col pr-4">
+        <span className="text-sm font-medium text-gray-900 group-hover:text-amber-600 transition-colors">{label}</span>
+        <span className="text-xs text-gray-500 mt-0.5">{description}</span>
       </div>
       <button
         onClick={() => onChange(!checked)}
-        className={`shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 ${
+        className={`shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 ${
           checked ? "bg-amber-400" : "bg-gray-200"
         }`}
       >
         <span
-          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
             checked ? "translate-x-6" : "translate-x-1"
           }`}
         />
@@ -182,15 +149,9 @@ function Toggle({ label, description, checked, onChange }: ToggleProps) {
   );
 }
 
-/* --- SUB-SECTIONS --- */
+/* --- 3. SECTIONS (LOGIC CONNECTED) --- */
 
-interface ProfileSectionProps {
-  user: UserData;
-  updateUser: (updates: Partial<UserData>) => Promise<UserData>;
-  openModal: () => void;
-}
-
-const ProfileSection = ({ user, updateUser, openModal }: ProfileSectionProps) => {
+const ProfileSection = ({ user, handleUpdateApi, openModal }: { user: UserData, handleUpdateApi: any, openModal: () => void }) => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
@@ -206,60 +167,117 @@ const ProfileSection = ({ user, updateUser, openModal }: ProfileSectionProps) =>
   }, [user]);
 
   const handleSave = async () => {
-    if (!username.trim()) return;
     setSaving(true);
     setMessage(null);
     try {
-      await updateUser({ username, name: fullName });
-      setMessage({ type: "success", text: "Changes saved!" });
-    } catch (err) {
-      setMessage({ type: "error", text: "Failed to save" });
+      await handleUpdateApi({ username, name: fullName });
+      setMessage({ type: "success", text: "Saved!" });
+    } catch (err: any) {
+      setMessage({ type: "error", text: err.message || "Failed" });
     } finally {
       setSaving(false);
       setTimeout(() => setMessage(null), 3000);
     }
   };
 
-  const avatarText = (user?.username || "U").slice(0, 2).toUpperCase();
+  const avatarText = (user?.name || "U").slice(0, 2).toUpperCase();
 
   return (
-    <SettingsCard icon={<UserIcon size={20} />} title="Profile" subtitle="Manage your info">
+    <SettingsCard icon={<UserIcon size={20} />} title="Profile" subtitle="Personal details" className="col-span-1 lg:col-span-3">
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-center sm:text-left">
-          <div className="relative h-20 w-20 sm:h-24 sm:w-24 overflow-hidden rounded-full bg-gray-100 ring-4 ring-white shadow-sm shrink-0">
-            {user?.avatarUrl ? (
-              <img src={user.avatarUrl} alt="avatar" className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center bg-indigo-100 text-2xl font-bold text-indigo-600">
-                {avatarText}
-              </div>
-            )}
+        <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-gray-100 border-dashed">
+          <div className="relative group cursor-pointer" onClick={openModal}>
+            <div className="h-24 w-24 overflow-hidden rounded-full bg-gray-50 ring-4 ring-white shadow-md transition-transform duration-300 group-hover:scale-105">
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt="avatar" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-amber-100 to-amber-50 text-2xl font-bold text-amber-500">
+                  {avatarText}
+                </div>
+              )}
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/30 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                <Camera className="text-white" size={24} />
+            </div>
           </div>
-          <div className="flex flex-col gap-2 w-full sm:w-auto items-center sm:items-start">
-             <Button variant="secondary" onClick={openModal} className="w-full sm:w-fit">Change Photo</Button>
-             <p className="text-xs text-gray-500">JPG, PNG or GIF. Max 2MB.</p>
+          <div className="flex flex-col gap-2 text-center sm:text-left flex-1 w-full sm:w-auto">
+             <div>
+                <h4 className="text-lg font-bold text-gray-900">{fullName || "User"}</h4>
+                <p className="text-sm text-gray-500">@{username || "username"}</p>
+             </div>
+             <div className="flex flex-col sm:flex-row items-center sm:items-end gap-3">
+                 <Button variant="secondary" onClick={openModal} className="h-9">Change Photo</Button>
+                 <span className="text-xs text-gray-400">JPG, PNG (Max 2MB)</span>
+             </div>
           </div>
         </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <InputField label="Full Name" id="fullname" value={fullName} onChange={setFullName} placeholder="John Doe" />
           <InputField label="Username" id="username" value={username} onChange={setUsername} placeholder="johndoe" />
           <div className="sm:col-span-2">
-             <InputField label="Email" id="email" type="email" value={email} onChange={setEmail} disabled />
+             <InputField label="Email Address" id="email" type="email" value={email} onChange={setEmail} disabled />
           </div>
         </div>
-
-        <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-4 border-t border-gray-100 pt-6">
-          <div className="text-sm w-full sm:w-auto text-center sm:text-left h-6">
+        <div className="flex flex-col-reverse sm:flex-row items-center justify-between pt-2 gap-4 sm:gap-0">
+          <div className="min-h-[24px] w-full sm:w-auto text-center sm:text-left">
             {message && (
-              <span className={`flex items-center justify-center sm:justify-start gap-2 ${message.type === "success" ? "text-green-600" : "text-red-600"}`}>
+              <span className={`inline-flex items-center gap-2 text-sm font-medium px-3 py-1 rounded-full ${message.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
                 {message.type === "success" ? <CheckCircle2 size={16}/> : <XCircle size={16}/>}
                 {message.text}
               </span>
             )}
           </div>
-          <Button variant="primary" icon={<Save size={16} />} onClick={handleSave} disabled={saving} fullWidthMobile>
+          <Button variant="primary" icon={<Save size={18} />} onClick={handleSave} disabled={saving} fullWidthMobile className="sm:min-w-[140px]">
             {saving ? "Saving..." : "Save Changes"}
+          </Button>
+        </div>
+      </div>
+    </SettingsCard>
+  );
+};
+
+const SecuritySection = ({ handleUpdateApi }: { handleUpdateApi: any }) => {
+  const [passwords, setPasswords] = useState({ current: "", new: "", confirm: "" });
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleChange = (field: string, val: string) => setPasswords(prev => ({ ...prev, [field]: val }));
+
+  const handleSubmit = async () => {
+    setError(""); setSuccess("");
+    if (passwords.new !== passwords.confirm) { setError("Passwords do not match"); return; }
+    if (passwords.new.length < 6 && passwords.new.length > 0) { setError("Min 6 characters"); return; }
+    if (!passwords.current) { setError("Enter current password"); return; }
+    
+    setSaving(true);
+    try {
+      await handleUpdateApi({ currentPassword: passwords.current, newPassword: passwords.new });
+      setSuccess("Password updated successfully!");
+      setPasswords({ current: "", new: "", confirm: "" });
+    } catch (err: any) {
+      setError(err.message || "Failed to update password");
+    } finally {
+        setSaving(false);
+    }
+  };
+
+  return (
+    <SettingsCard icon={<Lock size={20} />} title="Security" subtitle="Protection" className="col-span-1 lg:col-span-2">
+      <div className="flex flex-col gap-4">
+        <div className="bg-blue-50/50 rounded-lg p-3 border border-blue-100 text-blue-800 text-sm mb-1">
+            <strong>Tip:</strong> Use a strong password with symbols.
+        </div>
+        <InputField label="Current Password" id="current_pass" type="password" value={passwords.current} onChange={(v) => handleChange("current", v)} placeholder="••••••••" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <InputField label="New Password" id="new_pass" type="password" value={passwords.new} onChange={(v) => handleChange("new", v)} placeholder="••••••••" />
+          <InputField label="Confirm Password" id="confirm_pass" type="password" value={passwords.confirm} onChange={(v) => handleChange("confirm", v)} placeholder="••••••••" />
+        </div>
+        {error && <p className="text-sm text-red-600 flex items-center gap-2 bg-red-50 p-2 rounded-lg border border-red-100"><AlertTriangle size={16}/> {error}</p>}
+        {success && <p className="text-sm text-green-600 flex items-center gap-2 bg-green-50 p-2 rounded-lg border border-green-100"><CheckCircle2 size={16}/> {success}</p>}
+        <div className="flex justify-end pt-2">
+          <Button variant="secondary" onClick={handleSubmit} disabled={saving} fullWidthMobile className="border-amber-200 text-amber-700 hover:bg-amber-50">
+            {saving ? "Updating..." : "Update Password"}
           </Button>
         </div>
       </div>
@@ -275,263 +293,236 @@ const NotificationSection = () => {
     events: true
   });
   const [saving, setSaving] = useState(false);
-
   const toggle = (key: string) => setSettings(prev => ({ ...prev, [key]: !prev[key] }));
-
-  const handleSave = () => {
-    setSaving(true);
-    setTimeout(() => setSaving(false), 800);
+  
+  const handleSave = () => { 
+      setSaving(true); 
+      setTimeout(() => setSaving(false), 800); 
   };
 
   return (
-    <SettingsCard icon={<Bell size={20} />} title="Notifications" subtitle="Manage preferences">
-      <div className="divide-y divide-gray-100">
-        <Toggle 
-          label="Email Notifications" 
-          description="Receive updates via email"
-          checked={settings.email} 
-          onChange={() => toggle('email')} 
-        />
-        <Toggle 
-          label="Push Notifications" 
-          description="Real-time device notifications"
-          checked={settings.push} 
-          onChange={() => toggle('push')} 
-        />
-        <Toggle 
-          label="Task Reminders" 
-          description="Upcoming tasks alerts"
-          checked={settings.tasks} 
-          onChange={() => toggle('tasks')} 
-        />
-        <Toggle 
-          label="Event Reminders" 
-          description="Upcoming events alerts"
-          checked={settings.events} 
-          onChange={() => toggle('events')} 
-        />
+    <SettingsCard icon={<Bell size={20} />} title="Notifications" subtitle="Alerts" className="col-span-1 lg:col-span-1 h-full">
+      <div className="divide-y divide-gray-100 border rounded-xl border-gray-100 px-4">
+        <Toggle label="Email Updates" description="Newsletters" checked={settings.email} onChange={() => toggle('email')} />
+        <Toggle label="Push Alerts" description="Mobile push" checked={settings.push} onChange={() => toggle('push')} />
+        <Toggle label="Tasks" description="Due reminders" checked={settings.tasks} onChange={() => toggle('tasks')} />
+        <Toggle label="Events" description="Calendar" checked={settings.events} onChange={() => toggle('events')} />
       </div>
-      <div className="mt-6 flex justify-end border-t border-gray-100 pt-6">
-        <Button variant="primary" onClick={handleSave} disabled={saving} fullWidthMobile>
-          {saving ? "Saving..." : "Save Changes"}
+      <div className="mt-6">
+        <Button variant="primary" onClick={handleSave} disabled={saving} fullWidthMobile className="w-full">
+          {saving ? "Saving Preferences..." : "Save Preferences"}
         </Button>
       </div>
     </SettingsCard>
   );
 };
 
-const SecuritySection = () => {
-  const [passwords, setPasswords] = useState({ current: "", new: "", confirm: "" });
-  const [error, setError] = useState("");
-
-  const handleChange = (field: string, val: string) => setPasswords(prev => ({ ...prev, [field]: val }));
-
-  const handleSubmit = () => {
-    setError("");
-    if (passwords.new !== passwords.confirm) {
-      setError("Passwords do not match");
-      return;
-    }
-    if (passwords.new.length < 6) {
-      setError("Min 6 characters");
-      return;
-    }
-    alert("Password change logic would run here");
-    setPasswords({ current: "", new: "", confirm: "" });
-  };
-
+// ⚠️ UPDATE: DangerZone sekarang menerima props 'onDelete'
+const DangerZone = ({ onDelete, isDeleting }: { onDelete: () => void, isDeleting: boolean }) => {
   return (
-    <SettingsCard icon={<Lock size={20} />} title="Security" subtitle="Password & security">
-      <div className="flex flex-col gap-4">
-        <InputField 
-          label="Current Password" 
-          id="current_pass" 
-          type="password" 
-          value={passwords.current} 
-          onChange={(v) => handleChange("current", v)} 
-          placeholder="Current password"
-        />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <InputField 
-            label="New Password" 
-            id="new_pass" 
-            type="password" 
-            value={passwords.new} 
-            onChange={(v) => handleChange("new", v)} 
-            placeholder="New password"
-          />
-          <InputField 
-            label="Confirm Password" 
-            id="confirm_pass" 
-            type="password" 
-            value={passwords.confirm} 
-            onChange={(v) => handleChange("confirm", v)} 
-            placeholder="Confirm password"
-          />
-        </div>
-        
-        {error && <p className="text-sm text-red-600 flex items-center gap-2 bg-red-50 p-2 rounded"><AlertTriangle size={14}/> {error}</p>}
-
-        <div className="flex justify-end pt-2">
-          <Button variant="primary" onClick={handleSubmit} fullWidthMobile>Update Password</Button>
-        </div>
-      </div>
-    </SettingsCard>
-  );
-};
-
-const DangerZone = () => {
-  return (
-    <SettingsCard 
-      icon={<AlertTriangle size={20} />} 
-      title="Danger Zone" 
-      subtitle="Irreversible actions" 
-      danger={true}
-    >
-      <div className="rounded-lg border border-red-100 bg-red-50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <SettingsCard icon={<AlertTriangle size={20} />} title="Danger Zone" subtitle="Irreversible" danger={true} className="col-span-1 lg:col-span-3 border-dashed">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="text-center sm:text-left">
-          <h4 className="text-sm font-medium text-red-900">Delete Account</h4>
-          <p className="text-xs sm:text-sm text-red-700 mt-1">Permanently remove your account and data.</p>
+          <h4 className="text-base font-bold text-gray-900">Delete Account</h4>
+          <p className="text-sm text-gray-500 mt-1 max-w-md">Permanently remove your account data.</p>
         </div>
-        <Button variant="danger" icon={<Trash2 size={16} />} onClick={() => window.confirm("Are you sure?")} fullWidthMobile>
-          Delete Account
+        <Button 
+          variant="danger" 
+          icon={<Trash2 size={18} />} 
+          onClick={onDelete} 
+          disabled={isDeleting}
+          fullWidthMobile 
+          className="shrink-0"
+        >
+          {isDeleting ? "Deleting..." : "Delete Account"}
         </Button>
       </div>
     </SettingsCard>
   );
 };
 
-/* --- MAIN PAGE COMPONENT --- */
+/* --- 4. MAIN CONTENT --- */
 
-function SettingsContent() {
-  const { user, updateUser } = useAuth();
+export default function SettingsPage() {
+  // ✅ Ambil 'logout' juga dari context
+  const { user, updateUser: updateContextUser, logout, loading } = useAuth();
   
   const [isOpen, setIsOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false); // State untuk loading delete
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const openModal = () => {
-    setFile(null); setPreview(null); setFileError(null); setIsOpen(true);
+  // --- LOGIC API UPDATE ---
+  const handleUpdateApi = async (updates: any) => {
+    const token = localStorage.getItem("token");
+    
+    const res = await fetch("/api/user/profile", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(updates),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || "Gagal update profile");
+    }
+
+    await updateContextUser(updates);
+    return data;
   };
 
-  const closeModal = () => {
-    setIsOpen(false); setFile(null);
-    if (preview) URL.revokeObjectURL(preview);
-    setPreview(null); setFileError(null);
+  // 🔥 LOGIC DELETE ACCOUNT BARU
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("ARE YOU SURE?\n\nThis action cannot be undone. All your data will be lost forever.")) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/user/profile", {
+        method: "DELETE", // Panggil method DELETE yang baru dibuat di backend
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (res.ok) {
+        // Logout paksa user setelah akun terhapus
+        await logout();
+      } else {
+        alert("Failed to delete account. Please try again.");
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+      alert("Something went wrong.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
+
+  // --- MODAL & FILE LOGIC ---
+  const openModal = () => { setFile(null); setPreview(null); setFileError(null); setIsOpen(true); };
+  const closeModal = () => { setIsOpen(false); setFile(null); if (preview) URL.revokeObjectURL(preview); setPreview(null); setFileError(null); };
 
   const validateAndSetFile = (f: File) => {
     const allowed = ["image/jpeg", "image/png", "image/gif"];
-    if (!allowed.includes(f.type)) {
-      setFileError("Format must be JPG, PNG, GIF");
-      return false;
-    }
-    if (f.size > 2 * 1024 * 1024) {
-      setFileError("File too big. Max 2MB.");
-      return false;
-    }
-    setFileError(null); setFile(f);
-    setPreview(URL.createObjectURL(f));
-    return true;
+    if (!allowed.includes(f.type)) { setFileError("Format must be JPG, PNG, GIF"); return false; }
+    if (f.size > 2 * 1024 * 1024) { setFileError("File too big. Max 2MB."); return false; }
+    setFileError(null); setFile(f); setPreview(URL.createObjectURL(f)); return true;
   };
 
-  const onFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) validateAndSetFile(f);
-  };
+  const onFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) validateAndSetFile(f); };
 
   const handleSavePhoto = async () => {
     if (!file) return;
     setUploading(true);
-    try {
-      await new Promise(r => setTimeout(r, 1500));
-      // In real app, upload file here and get URL
-      const fakeUrl = preview || ""; 
-      await updateUser({ avatarUrl: fakeUrl });
-      setUploading(false);
-      closeModal();
-    } catch (err) {
-      setUploading(false);
-      setFileError("Upload failed");
-    }
+    
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = async () => {
+        try {
+            await handleUpdateApi({ avatarUrl: reader.result as string });
+            setUploading(false);
+            closeModal();
+        } catch (err) {
+            setUploading(false);
+            setFileError("Upload failed");
+        }
+    };
+    reader.onerror = () => {
+        setUploading(false);
+        setFileError("Error reading file");
+    };
   };
 
+  const safeUser: UserData = {
+      username: user?.username || "",
+      email: user?.email || "",
+      name: user?.name || "",
+      avatarUrl: user?.avatarUrl || null
+  };
+
+  if (loading) {
+      return <div className="min-h-screen flex items-center justify-center text-gray-500 font-medium">Loading settings...</div>;
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50/50 pb-20">
-      <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
-        
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">Settings</h1>
-          <p className="mt-1 sm:mt-2 text-sm sm:text-base text-gray-500">Manage your preferences and account settings.</p>
+    <div className="min-h-screen bg-gray-50 font-sans pb-10 sm:pb-20"> 
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
+        <div className="mb-8 text-center sm:text-left">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">Account Settings</h1>
+          <p className="mt-1 text-sm sm:text-base text-gray-500">Manage your profile details and preferences.</p>
         </div>
 
-        <div className="flex flex-col gap-4 sm:gap-8">
-          <ProfileSection user={user} updateUser={updateUser} openModal={openModal} />
-          <NotificationSection />
-          <SecuritySection />
-          <DangerZone />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 items-start">
+          <ProfileSection user={safeUser} handleUpdateApi={handleUpdateApi} openModal={openModal} />
+          
+          <div className="contents lg:block lg:col-span-3 space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <SecuritySection handleUpdateApi={handleUpdateApi} />
+                <NotificationSection />
+              </div>
+          </div>
+
+          {/* 👇 Kirim props onDelete ke DangerZone */}
+          <DangerZone onDelete={handleDeleteAccount} isDeleting={isDeleting} />
         </div>
       </main>
 
-      {/* Modal */}
+      {/* Modal Upload */}
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity" onClick={closeModal} />
+          <div className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={closeModal} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-lg transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-              <div className="flex items-center justify-between mb-5">
-                <h3 className="text-lg font-semibold text-gray-900">Change Profile Photo</h3>
+            <div className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-2xl transition-all">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-900">Update Photo</h3>
                 <button onClick={closeModal} className="rounded-full p-1 hover:bg-gray-100 transition-colors">
                   <XCircle size={24} className="text-gray-400" />
                 </button>
               </div>
 
               <div 
-                className="relative flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 py-8 sm:py-12 hover:bg-gray-100 transition-colors"
+                className="relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 py-8 hover:bg-gray-50 hover:border-amber-300 transition-all cursor-pointer group"
                 onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                onDrop={(e) => { 
-                  e.preventDefault(); e.stopPropagation(); 
-                  if(e.dataTransfer.files?.[0]) validateAndSetFile(e.dataTransfer.files[0]);
-                }}
+                onDrop={(e) => { e.preventDefault(); e.stopPropagation(); if(e.dataTransfer.files?.[0]) validateAndSetFile(e.dataTransfer.files[0]); }}
+                onClick={() => fileInputRef.current?.click()}
               >
                   {preview ? (
-                    <div className="relative h-32 w-32 sm:h-40 sm:w-40">
-                        <img src={preview} className="h-full w-full rounded-full object-cover border-4 border-white shadow-md" alt="Preview" />
-                        <button 
-                          onClick={() => { setPreview(null); setFile(null); }}
-                          className="absolute -right-2 -top-2 rounded-full bg-red-500 p-1 text-white shadow-sm hover:bg-red-600"
-                        >
-                          <XCircle size={16} />
+                    <div className="relative h-32 w-32">
+                        <img src={preview} className="h-full w-full rounded-full object-cover border-4 border-white shadow-xl" alt="Preview" />
+                        <button onClick={(e) => { e.stopPropagation(); setPreview(null); setFile(null); }} className="absolute -right-1 -top-1 rounded-full bg-red-500 p-1.5 text-white shadow-md hover:bg-red-600 transition-transform hover:scale-110">
+                          <XCircle size={18} />
                         </button>
                     </div>
                   ) : (
                     <>
-                      <div className="rounded-full bg-amber-100 p-3 sm:p-4">
-                        <UserIcon size={32} className="text-amber-600" />
+                      <div className="rounded-full bg-amber-100 p-3 group-hover:scale-110 transition-transform duration-300">
+                        <UserIcon size={32} className="text-amber-500" />
                       </div>
                       <div className="text-center px-4">
-                        <p className="text-sm font-medium text-gray-900">
-                          <label htmlFor="file-upload" className="cursor-pointer text-amber-600 hover:text-amber-500 hover:underline">
-                            Click to upload
-                          </label>
-                          <span className="hidden sm:inline"> or drag and drop</span>
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">JPG, PNG, GIF up to 2MB</p>
+                        <p className="text-sm font-semibold text-gray-700">Tap to upload</p>
+                        <p className="text-xs text-gray-400 mt-1">SVG, PNG, JPG or GIF (max. 2MB)</p>
                       </div>
                       <input ref={fileInputRef} id="file-upload" type="file" className="hidden" accept="image/*" onChange={onFilePicked} />
                     </>
                   )}
               </div>
 
-              {fileError && <p className="mt-3 text-sm text-red-600 text-center">{fileError}</p>}
+              {fileError && <div className="mt-4 p-2 bg-red-50 text-red-600 rounded-lg text-sm text-center font-medium border border-red-100">{fileError}</div>}
 
               <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-3">
                 <Button variant="secondary" onClick={closeModal} fullWidthMobile>Cancel</Button>
-                <Button variant="primary" onClick={handleSavePhoto} disabled={uploading || !file} fullWidthMobile>
-                  {uploading ? "Uploading..." : "Save Photo"}
+                <Button variant="primary" onClick={handleSavePhoto} disabled={uploading || !file} fullWidthMobile className="sm:w-28">
+                  {uploading ? "..." : "Save"}
                 </Button>
               </div>
             </div>
@@ -539,13 +530,5 @@ function SettingsContent() {
         </>
       )}
     </div>
-  );
-}
-
-export default function SettingsPage() {
-  return (
-    <MockAuthProvider>
-      <SettingsContent />
-    </MockAuthProvider>
   );
 }

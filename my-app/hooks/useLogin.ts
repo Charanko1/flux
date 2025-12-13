@@ -15,7 +15,7 @@ export function useLogin() {
   const [rememberMe, setRememberMe] = useState(false);
   
   const router = useRouter();
-  const { login } = useAuth();
+  const { login } = useAuth(); // Pastikan AuthContext kamu juga tidak menimpa token logic
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -41,7 +41,14 @@ export function useLogin() {
       const data = await res.json();
 
       if (res.ok) {
-        await login(data.user);
+        // --- PERBAIKAN UTAMA DISINI ---
+        // Simpan token dari backend ke localStorage agar SettingsPage bisa membacanya
+        if (data.token) {
+            localStorage.setItem("token", data.token);
+        }
+        // ------------------------------
+
+        await login(data.token, data.user);
         router.push("/dashboard");
       } else if (res.status === 403) {
         setError(data.message || "Login gagal. Akun belum diverifikasi.");
