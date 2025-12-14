@@ -1,9 +1,8 @@
-// File: app/api/auth/register/route.ts (FIXED: NO DOUBLE HASH)
+// app/api/auth/register/route.ts (Tidak ada perubahan yang diperlukan)
 
 import { NextResponse, NextRequest } from "next/server";
 import connectDB from "@/lib/mongodb"; 
 import User from "@/models/User"; 
-// HAPUS IMPORT BCRYPT (Kita serahkan ke Model User)
 import { sendEmail } from "@/lib/email";
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -11,7 +10,6 @@ const JWT_SECRET = process.env.JWT_SECRET;
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        // FIX: Terima 'name' agar sinkron dengan frontend
         const { name, email, password } = body; 
         
         if (!name || !email || !password) {
@@ -26,8 +24,6 @@ export async function POST(req: NextRequest) {
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
         const otpExpires = new Date(Date.now() + 10 * 60 * 1000); 
 
-        // FIX: JANGAN HASH PASSWORD DISINI. 
-        // Biarkan middleware 'pre-save' di User.ts yang melakukannya.
         
         if (existingUser && !existingUser.isVerified) {
              // Update user lama
@@ -67,7 +63,10 @@ export async function POST(req: NextRequest) {
             email 
         }, { status: 201 });
 
-    } catch (error) {
+    } catch (error: any) {
+        if (error.code === 11000) {
+             return NextResponse.json({ message: "Username sudah dipakai user lain." }, { status: 409 });
+        }
         console.error("Registration Error:", error);
         return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
     }

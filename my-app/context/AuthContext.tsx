@@ -3,14 +3,13 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-// ✅ UPDATE: Tambahkan avatarUrl di sini agar dikenali TypeScript
 export interface UserType {
   _id: string;
   name: string;
   username?: string;
   email: string;
   role?: string;
-  avatarUrl?: string; // <--- INI YANG BARU
+  avatarUrl?: string;
 }
 
 interface AuthContextType {
@@ -34,17 +33,57 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return localStorage.getItem("token");
   };
 
-  // Ambil user dari localStorage saat pertama kali
-  useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-      setLoading(false);
-    } else {
-      setLoading(false);
+  // Helper: fetch profil dari backend (pakai cookie `session`)
+  const fetchProfile = async (): Promise<UserType | null> => {
+    try {
+      const res = await fetch("/api/user/profile", {
+        method: "GET",
+        credentials: "include",
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return {
+        _id: data._id,
+        name: data.name,
+        email: data.email,
+        username: data.username,
+        role: data.role,
+        avatarUrl: data.avatarUrl,
+      };
+    } catch {
+      return null;
     }
+  };
+
+  // Inisialisasi: coba ambil dari localStorage, kalau tidak ada sync dari backend
+  useEffect(() => {
+    const init = async () => {
+      const savedUser = typeof window !== "undefined"
+        ? localStorage.getItem("user")
+        : null;
+
+      if (savedUser) {
+        setUser(JSON.parse(savedUser));
+        setLoading(false);
+        return;
+      }
+
+      // Tidak ada di localStorage → coba baca dari API (cookie session)
+      const profile = await fetchProfile();
+      if (profile) {
+        setUser(profile);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("user", JSON.stringify(profile));
+        }
+      }
+
+      setLoading(false);
+    };
+
+    init();
   }, []);
 
+  // Login manual (email/password)
   const login = async (token: string, userData?: Partial<UserType>) => {
     localStorage.setItem("token", token);
 
@@ -52,6 +91,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const newUser = userData as UserType;
       setUser(newUser);
       localStorage.setItem("user", JSON.stringify(newUser));
+    } else {
+      // kalau tidak ada userData eksplisit, sync dari backend
+      const profile = await fetchProfile();
+      if (profile) {
+        setUser(profile);
+        localStorage.setItem("user", JSON.stringify(profile));
+      }
     }
 
     router.push("/dashboard");
@@ -64,23 +110,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     router.push("/auth/login");
   };
 
-  /**
-   * ✅ Update user data locally (tanpa backend)
-   */
+  // Update user lokal setelah PUT /api/user/profile
   const updateUser = async (data: Partial<UserType>): Promise<UserType> => {
     if (!user) throw new Error("Not authenticated");
 
     const updatedUser: UserType = {
       ...user,
       ...data,
-      // ⚠️ PERBAIKAN LOGIKA KECIL:
-      // Pastikan name diambil dari data.name (jika ada), kalau tidak baru pakai user.name lama
-      name: data.name ?? user.name, 
+      name: data.name ?? user.name,
     };
 
-    // Simpan ke state dan localStorage
     setUser(updatedUser);
-    localStorage.setItem("user", JSON.stringify(updatedUser));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+    }
 
     return updatedUser;
   };

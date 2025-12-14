@@ -25,7 +25,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: "Email and password are required" }, { status: 400 });
         }
 
-        const user = await User.findOne({ email }).select('+password +isVerified') as IUser | null; 
+        // Ambil data penting dari user: +password, +isVerified, dan pastikan username/avatarUrl terambil
+        const user = await User.findOne({ email }).select('+password +isVerified +username +avatarUrl') as IUser | null; 
         
         if (!user) {
             return NextResponse.json({ message: "Invalid credentials." }, { status: 401 }); 
@@ -47,24 +48,33 @@ export async function POST(req: Request) {
         const oneDay = 60 * 60 * 24; 
         const jwtExpiresIn = rememberMe ? "7d" : "1d"; 
 
+        // 🟢 PERUBAHAN KRUSIAL: Tambahkan username dan avatarUrl ke Payload JWT
+        const tokenPayload = { 
+            id: user._id, 
+            email: user.email, 
+            name: user.name, 
+            username: user.username,        // <--- BARU
+            avatarUrl: user.avatarUrl,      // <--- BARU
+        };
+
         const token = jwt.sign(
-            { id: user._id, email: user.email, name: user.name }, 
+            tokenPayload, // Gunakan payload baru
             JWT_SECRET, 
             { expiresIn: jwtExpiresIn }
         );
 
         // --- PERUBAHAN DISINI ---
-        // Kita kirim token di dalam object JSON agar bisa dibaca Frontend
         const response = NextResponse.json(
             { 
                 message: "Login Successful", 
-                token: token, // <--- PENTING: Kirim token ke frontend
-                user: { id: user._id, name: user.name, email: user.email } 
+                token: token, 
+                // 🟢 Perbarui data user yang dikirim ke Frontend agar lengkap
+                user: tokenPayload
             }, 
             { status: 200 }
         );
 
-        // Tetap set cookie untuk keamanan tambahan / middleware di masa depan
+        // Tetap set cookie
         response.cookies.set('session', token, {
             httpOnly: true, 
             secure: process.env.NODE_ENV === 'production', 

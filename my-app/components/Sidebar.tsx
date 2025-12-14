@@ -2,6 +2,7 @@
 
 import React, { useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { signOut } from "next-auth/react"; // 👈 Import ini wajib biar akun Google logout
 import {
   LayoutGrid,
   CheckSquare,
@@ -20,7 +21,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
-  const { user, loading, logout } = useAuth();
+  const { user, loading } = useAuth(); // Kita bikin logout manual, jadi gak perlu ambil function logout dari context
 
   // Auto-close on resize (Mobile UX)
   useEffect(() => {
@@ -33,11 +34,29 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     return () => window.removeEventListener("resize", handleResize);
   }, [setIsOpen]);
 
+  // 🔥 UPDATE: LOGIC LOGOUT BERSIH-BERSIH TOTAL 🔥
   const handleLogout = async () => {
     try {
-      await logout();
+      // 1. HAPUS TOKEN DARI LOCALSTORAGE (Penting!)
+      // Ini yang bikin kamu "ketarik" masuk lagi kalau gak dihapus.
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      }
+
+      // 2. HAPUS COOKIE SESSION (Backend)
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+
+      // 3. LOGOUT DARI NEXTAUTH (Google) & REDIRECT
+      // Fungsi ini akan menghapus sesi Google dan otomatis melempar kamu ke /login
+      await signOut({ callbackUrl: "/auth/login", redirect: true });
+
     } catch (error) {
       console.error("Logout error:", error);
+      // Fallback: Kalau ada error, paksa reload ke halaman login
+      window.location.href = "/auth/login";
     }
   };
 
@@ -56,7 +75,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   }
 
   // --- LOGIC AVATAR ---
-  // Gunakan foto dari database jika ada, jika tidak gunakan inisial (UI Avatars)
   const avatarSrc = user?.avatarUrl
     ? user.avatarUrl
     : `https://ui-avatars.com/api/?name=${encodeURIComponent(

@@ -57,6 +57,7 @@ const RightSidebar = memo(() => {
         setIsLoading(true);
         const response = await fetch("/api/dashboard/notes", {
           cache: "no-store",
+          credentials: "include", // penting agar cookie session terkirim
         });
         if (response.ok) {
           const data = await response.json();
@@ -163,6 +164,7 @@ const MainContent = memo(() => {
       try {
         const resTask = await fetch("/api/dashboard/task", {
           cache: "no-store",
+          credentials: "include", // kirim cookie session
         });
         if (resTask.ok) {
           const dbTasks = await resTask.json();
@@ -213,6 +215,7 @@ const MainContent = memo(() => {
       try {
         const resFinance = await fetch("/api/dashboard/finance", {
           cache: "no-store",
+          credentials: "include", // kirim cookie session
         });
         if (resFinance.ok) {
           const dbTransactions = await resFinance.json();
