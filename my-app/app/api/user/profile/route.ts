@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// PUT: Update Profile (nama, username, avatar, password)
+// PUT: Update Profile
 export async function PUT(req: NextRequest) {
   try {
     await connectDB();
@@ -46,7 +46,6 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // Wrap req.json() dalam try-catch untuk menangani payload yang terlalu besar/error parsing
     let body;
     try {
       body = await req.json();
@@ -64,14 +63,10 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    // Update Basic Info
     if (name) user.name = name;
     if (username) user.username = username;
-    
-    // Update Avatar (sekarang menerima string base64 yang sudah dikompres)
     if (avatarUrl) user.avatarUrl = avatarUrl;
 
-    // Update Password Logic
     if (newPassword && currentPassword) {
       const userWithPass = await User.findById(userData.id).select("+password");
 
@@ -87,13 +82,14 @@ export async function PUT(req: NextRequest) {
 
     await user.save();
 
+    // ✅ PERBAIKAN: HAPUS avatarUrl DARI SINI JUGA
     const tokenPayload = {
       id: user._id,
       name: user.name,
       username: user.username,
       email: user.email,
-      avatarUrl: user.avatarUrl,
       role: user.role || "user",
+      // avatarUrl dihapus dari token agar cookie tidak error saat update profile
     };
 
     const newToken = jwt.sign(tokenPayload, process.env.JWT_SECRET!, {
@@ -102,7 +98,10 @@ export async function PUT(req: NextRequest) {
 
     const response = NextResponse.json({
       message: "Profile updated",
-      user: tokenPayload,
+      user: {
+        ...tokenPayload,
+        avatarUrl: user.avatarUrl // Kirim di body response saja
+      },
     });
 
     response.cookies.set("session", newToken, {

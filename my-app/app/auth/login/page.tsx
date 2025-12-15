@@ -142,7 +142,7 @@ export default function LoginPage() {
 
           <motion.div variants={itemVariants}>
             <Link
-              href="/auth/landing"
+              href="/../../.."
               className="text-[10px] sm:text-xs text-gray-600 lg:text-gray-500 mb-4 block hover:underline transition-colors hover:text-amber-600 flex items-center gap-1 group"
             >
               <span className="group-hover:-translate-x-1 transition-transform">

@@ -1,21 +1,16 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Event from '@/models/Event';
-// GANTI IMPORT AUTH
 import { getUserFromToken } from "@/lib/auth-server";
+// 👇 Import Helper Notifikasi
+import { createNotification } from "@/lib/notification-helper";
 
-// 1. GET: Ambil Event User
 export async function GET() {
   try {
     await connectDB();
-    
-    // AUTH BARU
     const user = await getUserFromToken();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Gunakan user.id
     const events = await Event.find({ userId: user.id }).sort({ date: 1 });
     return NextResponse.json(events);
   } catch (error) {
@@ -23,38 +18,40 @@ export async function GET() {
   }
 }
 
-// 2. POST: Simpan Event Baru
+// POST: Tambah Event (+ Notifikasi)
 export async function POST(request: Request) {
   try {
     await connectDB();
-    
-    // AUTH BARU
     const user = await getUserFromToken();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    
     if (!body.title || !body.date) {
        return NextResponse.json({ error: 'Judul dan Tanggal wajib diisi' }, { status: 400 });
     }
 
     const newEvent = await Event.create({
-      userId: user.id, // Gunakan user.id
+      userId: user.id,
       ...body
     });
 
+    // 🔔 TRIGGER NOTIFIKASI
+    await createNotification(
+      user.id,
+      "New Event Scheduled",
+      `Event "${newEvent.title}" on ${new Date(newEvent.date).toLocaleDateString()} created.`,
+      "success"
+    );
+
     return NextResponse.json(newEvent, { status: 201 });
   } catch (error) {
-    console.error("Error create event:", error);
     return NextResponse.json({ error: 'Gagal menyimpan event' }, { status: 500 });
   }
 }
 
-// 3. PUT: Edit Event
 export async function PUT(request: Request) {
   try {
     await connectDB();
-    
     const user = await getUserFromToken();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -77,11 +74,9 @@ export async function PUT(request: Request) {
   }
 }
 
-// 4. DELETE: Hapus Event
 export async function DELETE(request: Request) {
   try {
     await connectDB();
-    
     const user = await getUserFromToken();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

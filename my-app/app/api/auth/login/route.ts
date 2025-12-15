@@ -25,7 +25,6 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: "Email and password are required" }, { status: 400 });
         }
 
-        // Ambil data penting dari user: +password, +isVerified, dan pastikan username/avatarUrl terambil
         const user = await User.findOne({ email }).select('+password +isVerified +username +avatarUrl') as IUser | null; 
         
         if (!user) {
@@ -48,33 +47,35 @@ export async function POST(req: Request) {
         const oneDay = 60 * 60 * 24; 
         const jwtExpiresIn = rememberMe ? "7d" : "1d"; 
 
-        // 🟢 PERUBAHAN KRUSIAL: Tambahkan username dan avatarUrl ke Payload JWT
+        // ✅ PERBAIKAN: HAPUS avatarUrl DARI PAYLOAD TOKEN (Agar cookie muat)
         const tokenPayload = { 
             id: user._id, 
             email: user.email, 
             name: user.name, 
-            username: user.username,        // <--- BARU
-            avatarUrl: user.avatarUrl,      // <--- BARU
+            username: user.username,
+            role: user.role || "user",
+            // avatarUrl: user.avatarUrl,  <-- INI SUDAH DIHAPUS
         };
 
         const token = jwt.sign(
-            tokenPayload, // Gunakan payload baru
+            tokenPayload, 
             JWT_SECRET, 
             { expiresIn: jwtExpiresIn }
         );
 
-        // --- PERUBAHAN DISINI ---
         const response = NextResponse.json(
             { 
                 message: "Login Successful", 
                 token: token, 
-                // 🟢 Perbarui data user yang dikirim ke Frontend agar lengkap
-                user: tokenPayload
+                // ✅ Kita kirim avatar lewat body JSON saja, lebih aman
+                user: {
+                    ...tokenPayload,
+                    avatarUrl: user.avatarUrl 
+                }
             }, 
             { status: 200 }
         );
 
-        // Tetap set cookie
         response.cookies.set('session', token, {
             httpOnly: true, 
             secure: process.env.NODE_ENV === 'production', 

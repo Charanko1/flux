@@ -503,7 +503,7 @@ export default function RegisterPage() {
           {/* Back to Home Button */}
           <motion.div variants={itemVariants}>
             <button
-              onClick={() => router.push("/auth/landing")}
+              onClick={() => router.push("/../../..")}
               className="text-[10px] sm:text-xs text-gray-600 lg:text-gray-500 mb-2 hover:underline transition-colors hover:text-amber-600 flex items-center gap-1 group"
             >
               <span className="group-hover:-translate-x-1 transition-transform">←</span> Back to Home

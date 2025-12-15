@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Task, { ITask } from '@/models/Task';
-import User from '@/models/User';
 import { sendEmail } from '@/lib/email';
-// GANTI IMPORT AUTH
 import { getUserFromToken } from "@/lib/auth-server";
+// 👇 Import Helper Notifikasi
+import { createNotification } from "@/lib/notification-helper";
 
 // Konstanta Waktu
 const HOURS_TO_HIGH = 24; 
@@ -30,18 +30,14 @@ function calculatePriority(task: ITask) {
   return { newPriority, diffInHours };
 }
 
-// 1. GET: Ambil Task + AUTO UPDATE + SEND NOTIFICATION
+// 1. GET: Ambil Task
 export async function GET() {
   try {
     await connectDB();
-    
-    // AUTH BARU (Mendukung Manual & Google)
     const user = await getUserFromToken();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Kita gunakan user.id dan user.email yang didapat dari token pintar kita
     const userEmail = user.email; 
-
     const tasks = await Task.find({ userId: user.id }).sort({ createdAt: -1 });
 
     const bulkOps = [];
@@ -55,7 +51,6 @@ export async function GET() {
       let isUpdated = false;
       let updateFields: any = {};
 
-      // --- LOGIC 1: NOTIFIKASI STATUS BERUBAH ---
       if (currentPriority !== newPriority) {
         updateFields.priority = newPriority;
         task.priority = newPriority; 
@@ -65,12 +60,11 @@ export async function GET() {
            emailPromises.push(sendEmail(
              userEmail,
              `⚠️ Status Changed: ${task.title}`,
-             `<p>Task <b>"${task.title}"</b> has changed priority from <b>${currentPriority}</b> to <b>${newPriority}</b> due to approaching deadline.</p>`
+             `<p>Task <b>"${task.title}"</b> has changed priority from <b>${currentPriority}</b> to <b>${newPriority}</b>.</p>`
            ));
         }
       }
 
-      // --- LOGIC 2: NOTIFIKASI SISA 3 JAM ---
       if (diffInHours <= HOURS_TO_NOTIFY && diffInHours > 0 && !task.completed && !task.notificationSent) {
         updateFields.notificationSent = true;
         task.notificationSent = true;
@@ -93,7 +87,6 @@ export async function GET() {
           }
         });
       }
-      
       updatedTasks.push(task);
     }
 
@@ -102,7 +95,7 @@ export async function GET() {
     }
     
     if (emailPromises.length > 0) {
-      Promise.all(emailPromises).catch(err => console.error("Email sending error:", err));
+      Promise.all(emailPromises).catch(err => console.error("Email error:", err));
     }
 
     return NextResponse.json(updatedTasks);
@@ -112,6 +105,7 @@ export async function GET() {
   }
 }
 
+// 2. POST: Tambah Task (+ Notifikasi)
 export async function POST(request: Request) {
   try {
     await connectDB();
@@ -124,10 +118,18 @@ export async function POST(request: Request) {
     }
 
     const newTask = await Task.create({
-      userId: user.id, // Gunakan ID dari token
+      userId: user.id,
       ...body,
       completed: false
     });
+
+    // 🔔 TRIGGER NOTIFIKASI
+    await createNotification(
+      user.id,
+      "New Task Added",
+      `Task "${newTask.title}" has been successfully created.`,
+      "success"
+    );
 
     return NextResponse.json(newTask, { status: 201 });
   } catch (error) {
@@ -135,6 +137,7 @@ export async function POST(request: Request) {
   }
 }
 
+// 3. PUT: Edit Task
 export async function PUT(request: Request) {
   try {
     await connectDB();
@@ -158,6 +161,7 @@ export async function PUT(request: Request) {
   }
 }
 
+// 4. DELETE: Hapus Task
 export async function DELETE(request: Request) {
   try {
     await connectDB();

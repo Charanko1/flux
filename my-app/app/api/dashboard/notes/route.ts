@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Note from '@/models/Note';
-// GANTI IMPORT AUTH
 import { getUserFromToken } from "@/lib/auth-server";
+// 👇 Import Helper Notifikasi
+import { createNotification } from "@/lib/notification-helper";
 
 export async function GET() {
   try {
     await connectDB();
-    
-    // AUTH BARU
     const user = await getUserFromToken();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -19,15 +18,14 @@ export async function GET() {
   }
 }
 
+// POST: Tambah Note (+ Notifikasi)
 export async function POST(request: Request) {
   try {
     await connectDB();
-    
     const user = await getUserFromToken();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    
     if (!body.title) {
        return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
@@ -37,9 +35,16 @@ export async function POST(request: Request) {
       ...body 
     });
 
+    // 🔔 TRIGGER NOTIFIKASI
+    await createNotification(
+      user.id,
+      "New Note Created",
+      `Note "${newNote.title}" has been saved.`,
+      "success"
+    );
+
     return NextResponse.json(newNote, { status: 201 });
   } catch (error) {
-    console.error("Error creating note:", error);
     return NextResponse.json({ error: 'Failed to create note' }, { status: 500 });
   }
 }
