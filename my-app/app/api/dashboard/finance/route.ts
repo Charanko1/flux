@@ -1,38 +1,24 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import FinanceTransaction from "@/models/Finance";
-import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
-
-// Ambil userId dari cookie "session"
-async function getUserIdFromSession() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("session")?.value;
-  if (!token) return null;
-
-  try {
-    const secret = process.env.JWT_SECRET || "";
-    const decoded: any = jwt.verify(token, secret);
-    return decoded.id as string;
-  } catch (error) {
-    return null;
-  }
-}
+// GANTI IMPORT AUTH
+import { getUserFromToken } from "@/lib/auth-server";
 
 // GET /api/dashboard/finance
 export async function GET(request: Request) {
   try {
     await connectDB();
 
-    const userId = await getUserIdFromSession();
-    if (!userId) {
+    // AUTH BARU
+    const user = await getUserFromToken();
+    if (!user) {
       return NextResponse.json(
         { error: "Unauthorized: Silakan login dulu" },
         { status: 401 }
       );
     }
 
-    const data = await FinanceTransaction.find({ userId }).sort({ date: -1 });
+    const data = await FinanceTransaction.find({ userId: user.id }).sort({ date: -1 });
 
     const normalized = data.map((item: any) => {
       const rawType = (item.type || "").toString().toLowerCase();
@@ -60,8 +46,9 @@ export async function POST(request: Request) {
   try {
     await connectDB();
 
-    const userId = await getUserIdFromSession();
-    if (!userId) {
+    // AUTH BARU
+    const user = await getUserFromToken();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -76,7 +63,7 @@ export async function POST(request: Request) {
     const finalAmount = isNaN(numericAmount) ? 0 : Math.abs(numericAmount);
 
     const newData = await FinanceTransaction.create({
-      userId,
+      userId: user.id, // Gunakan user.id
       title,
       amount: finalAmount,
       category,

@@ -3,7 +3,9 @@ import GoogleProvider from "next-auth/providers/google";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
 import jwt from "jsonwebtoken";
-import { setSessionCookie } from "@/lib/sessionCookie";
+
+// HAPUS import setSessionCookie, kita tidak butuh ini lagi untuk Google Login
+// import { setSessionCookie } from "@/lib/sessionCookie"; 
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -25,9 +27,11 @@ export const authOptions: NextAuthOptions = {
           const email = user.email;
           if (!email) return false;
 
+          // Cek apakah user sudah ada
           let dbUser = await User.findOne({ email });
 
           if (!dbUser) {
+            // -- LOGIC BUAT USER BARU --
             const baseName = user.name ? user.name.split(" ")[0] : "user";
             const randomSuffix = Math.floor(1000 + Math.random() * 9000);
 
@@ -39,15 +43,17 @@ export const authOptions: NextAuthOptions = {
               isVerified: true,
               role: "user",
               username: `${baseName.toLowerCase()}${randomSuffix}`,
-              password: "",
+              password: "", // Password kosong karena login via Google
             });
             await dbUser.save();
           } else {
+            // -- LOGIC UPDATE USER LAMA --
             let isUpdated = false;
             if (!dbUser.googleId) {
               dbUser.googleId = user.id;
               isUpdated = true;
             }
+            // Update avatar jika user lama belum punya atau ingin disinkronkan (opsional)
             if (!dbUser.avatarUrl) {
               dbUser.avatarUrl = user.image;
               isUpdated = true;
@@ -59,12 +65,9 @@ export const authOptions: NextAuthOptions = {
             if (isUpdated) await dbUser.save();
           }
 
-          // set cookie "session" dengan JWT yang dipakai backend
-          await setSessionCookie({
-            _id: dbUser._id.toString(),
-            email: dbUser.email,
-            name: dbUser.name,
-          });
+          // ❌ HAPUS BAGIAN setSessionCookie DI SINI
+          // Memaksa set cookie di callback signIn sering gagal di Next.js App Router.
+          // Kita akan mengandalkan session bawaan NextAuth saja.
 
           return true;
         } catch (error) {
@@ -76,23 +79,13 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
 
+    // Callback ini memastikan ID dari MongoDB masuk ke dalam Token NextAuth
     async jwt({ token, user }: any) {
       if (user) {
         await connectDB();
         const dbUser = await User.findOne({ email: user.email });
 
         if (dbUser) {
-          const backendToken = jwt.sign(
-            {
-              id: dbUser._id.toString(),
-              email: dbUser.email,
-              name: dbUser.name,
-            },
-            process.env.JWT_SECRET!,
-            { expiresIn: "7d" }
-          );
-
-          token.accessToken = backendToken;
           token.id = dbUser._id.toString();
           token.role = dbUser.role || "user";
           token.username = dbUser.username;
@@ -101,12 +94,12 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
 
+    // Callback ini meneruskan data dari Token ke Session agar bisa dibaca di backend/frontend
     async session({ session, token }: any) {
       if (session.user) {
-        session.accessToken = token.accessToken;
-        session.user.id = token.id;
-        session.user.role = token.role;
-        session.user.username = token.username;
+        session.user.id = token.id as string;
+        session.user.role = token.role as string;
+        session.user.username = token.username as string;
       }
       return session;
     },

@@ -1,53 +1,32 @@
-// File: app/api/dashboard/task/route.ts
-
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Task, { ITask } from '@/models/Task';
 import User from '@/models/User';
-import jwt from 'jsonwebtoken';
-import { cookies } from 'next/headers';
 import { sendEmail } from '@/lib/email';
-
-// Helper Auth
-async function getUserIdFromSession() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('session')?.value;
-  if (!token) return null;
-  try {
-    const secret = process.env.JWT_SECRET || "";
-    const decoded: any = jwt.verify(token, secret);
-    return decoded.id;
-  } catch (error) {
-    return null;
-  }
-}
+// GANTI IMPORT AUTH
+import { getUserFromToken } from "@/lib/auth-server";
 
 // Konstanta Waktu
 const HOURS_TO_HIGH = 24; 
 const HOURS_TO_MEDIUM = 72; 
 const HOURS_TO_NOTIFY = 3; 
 
-// [PERBAIKAN] Fungsi ini sekarang SELALU mengembalikan Object yang konsisten
 function calculatePriority(task: ITask) {
   const now = new Date();
   const due = new Date(task.date);
   const diffInMs = due.getTime() - now.getTime();
   const diffInHours = diffInMs / (1000 * 60 * 60);
 
-  // Default: Priority tetap sama seperti di database
   let newPriority: 'High' | 'Medium' | 'Low' = task.priority;
 
-  // Hanya hitung logika perubahan priority JIKA tugas BELUM selesai
   if (!task.completed) {
     if (diffInHours <= HOURS_TO_HIGH) {
       newPriority = 'High';
     } else if (diffInHours <= HOURS_TO_MEDIUM) {
-      // Kalau aslinya High, tetap High. Kalau Low, naik ke Medium.
       newPriority = task.priority === 'High' ? 'High' : 'Medium';
     }
   }
 
-  // Return object yang konsisten (TypeScript Happy ✅)
   return { newPriority, diffInHours };
 }
 
@@ -55,20 +34,21 @@ function calculatePriority(task: ITask) {
 export async function GET() {
   try {
     await connectDB();
-    const userId = await getUserIdFromSession();
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    
+    // AUTH BARU (Mendukung Manual & Google)
+    const user = await getUserFromToken();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const user = await User.findById(userId);
-    const userEmail = user?.email; 
+    // Kita gunakan user.id dan user.email yang didapat dari token pintar kita
+    const userEmail = user.email; 
 
-    const tasks = await Task.find({ userId }).sort({ createdAt: -1 });
+    const tasks = await Task.find({ userId: user.id }).sort({ createdAt: -1 });
 
     const bulkOps = [];
     const updatedTasks = [];
     const emailPromises = [];
 
     for (const task of tasks) {
-      // Sekarang aman di-destructure karena return type-nya pasti object
       const { newPriority, diffInHours } = calculatePriority(task);
       const currentPriority = task.priority;
       
@@ -132,12 +112,11 @@ export async function GET() {
   }
 }
 
-// ... (Sisa function POST, PUT, DELETE biarkan sama)
 export async function POST(request: Request) {
   try {
     await connectDB();
-    const userId = await getUserIdFromSession();
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getUserFromToken();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
     if (!body.title || !body.date) {
@@ -145,7 +124,7 @@ export async function POST(request: Request) {
     }
 
     const newTask = await Task.create({
-      userId,
+      userId: user.id, // Gunakan ID dari token
       ...body,
       completed: false
     });
@@ -159,15 +138,15 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     await connectDB();
-    const userId = await getUserIdFromSession();
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getUserFromToken();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
     const { id, ...updateData } = body;
     if (!id) return NextResponse.json({ error: 'Task ID required' }, { status: 400 });
 
     const updatedTask = await Task.findOneAndUpdate(
-      { _id: id, userId },
+      { _id: id, userId: user.id },
       updateData,
       { new: true }
     );
@@ -182,14 +161,14 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await connectDB();
-    const userId = await getUserIdFromSession();
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getUserFromToken();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'Task ID required' }, { status: 400 });
 
-    const deletedTask = await Task.findOneAndDelete({ _id: id, userId });
+    const deletedTask = await Task.findOneAndDelete({ _id: id, userId: user.id });
     if (!deletedTask) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
 
     return NextResponse.json({ message: 'Task deleted' });
