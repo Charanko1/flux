@@ -32,7 +32,7 @@ export function useLogin() {
     setError(null);
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/auth/session?type=login", { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, rememberMe }),

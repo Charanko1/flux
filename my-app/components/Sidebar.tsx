@@ -45,7 +45,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       }
 
       // 2. HAPUS COOKIE SESSION (Backend)
-      await fetch("/api/auth/logout", {
+      // 2. HAPUS COOKIE SESSION (Backend)
+      await fetch("/api/auth/session?type=logout", {
         method: "POST",
       });
 

@@ -195,8 +195,8 @@ export default function RegisterPage() {
     
     const payload = { name: formData.name, email: formData.email, password: formData.password };
     
-    try {
-      const response = await fetch("/api/auth/register", {
+    try {      
+      const response = await fetch("/api/auth/session?type=register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
