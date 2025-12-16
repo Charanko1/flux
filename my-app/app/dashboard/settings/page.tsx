@@ -7,16 +7,13 @@ import {
   Save,
   Bell,
   Lock,
-  Trash2,
-  AlertTriangle,
   CheckCircle2,
   XCircle,
   Camera,
+  AlertTriangle,
 } from "lucide-react";
 
 /* --- 0. HELPER FUNCTION: COMPRESS IMAGE --- */
-// Fungsi ini mengubah gambar menjadi ukuran max 500x500 dan format JPEG 70% quality
-// Ini mencegah error "Payload too large" atau 502 Bad Gateway
 const resizeAndCompressImage = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -48,7 +45,6 @@ const resizeAndCompressImage = (file: File): Promise<string> => {
         const ctx = canvas.getContext("2d");
         ctx?.drawImage(img, 0, 0, width, height);
 
-        // Kompres ke JPEG kualitas 0.7
         const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
         resolve(dataUrl);
       };
@@ -266,8 +262,7 @@ const ProfileSection = ({
     try {
       await handleUpdateApi({ username, name: fullName });
       setMessage({ type: "success", text: "Saved!" });
-      // Reload halaman untuk memastikan nama di sidebar berubah
-      window.location.reload(); 
+      window.location.reload();
     } catch (err: any) {
       setMessage({ type: "error", text: err.message || "Failed" });
     } finally {
@@ -556,54 +551,16 @@ const NotificationSection = () => {
   );
 };
 
-const DangerZone = ({
-  onDelete,
-  isDeleting,
-}: {
-  onDelete: () => void;
-  isDeleting: boolean;
-}) => {
-  return (
-    <SettingsCard
-      icon={<AlertTriangle size={20} />}
-      title="Danger Zone"
-      subtitle="Irreversible"
-      danger={true}
-      className="col-span-1 lg:col-span-3 border-dashed"
-    >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="text-center sm:text-left">
-          <h4 className="text-base font-bold text-gray-900">Delete Account</h4>
-          <p className="text-sm text-gray-500 mt-1 max-w-md">
-            Permanently remove your account data.
-          </p>
-        </div>
-        <Button
-          variant="danger"
-          icon={<Trash2 size={18} />}
-          onClick={onDelete}
-          disabled={isDeleting}
-          fullWidthMobile
-          className="shrink-0"
-        >
-          {isDeleting ? "Deleting..." : "Delete Account"}
-        </Button>
-      </div>
-    </SettingsCard>
-  );
-};
-
 /* --- 4. MAIN CONTENT --- */
 
 export default function SettingsPage() {
-  const { user, updateUser: updateContextUser, logout, loading } = useAuth();
+  const { user, updateUser: updateContextUser, loading } = useAuth();
 
   const [isOpen, setIsOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- LOGIC API UPDATE ---
@@ -627,38 +584,6 @@ export default function SettingsPage() {
 
     await updateContextUser(updates);
     return data;
-  };
-
-  const handleDeleteAccount = async () => {
-    if (
-      !window.confirm(
-        "ARE YOU SURE?\n\nThis action cannot be undone. All your data will be lost forever."
-      )
-    ) {
-      return;
-    }
-
-    setIsDeleting(true);
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch("/api/user/profile", {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (res.ok) {
-        await logout();
-      } else {
-        alert("Failed to delete account. Please try again.");
-      }
-    } catch (error) {
-      console.error("Delete error:", error);
-      alert("Something went wrong.");
-    } finally {
-      setIsDeleting(false);
-    }
   };
 
   // --- MODAL & FILE LOGIC ---
@@ -698,24 +623,19 @@ export default function SettingsPage() {
     if (f) validateAndSetFile(f);
   };
 
-  // --- LOGIC SAVE PHOTO (DIPERBARUI) ---
+  // --- LOGIC SAVE PHOTO ---
   const handleSavePhoto = async () => {
     if (!file) return;
     setUploading(true);
     setFileError(null);
 
     try {
-      // 1. Resize & Kompres gambar dulu sebelum kirim ke backend
       const compressedBase64 = await resizeAndCompressImage(file);
-
-      // 2. Kirim data yang sudah kecil
       await handleUpdateApi({ avatarUrl: compressedBase64 });
 
       setUploading(false);
       closeModal();
-      
-      // 3. Force reload agar Sidebar dan Header mengambil gambar terbaru
-      window.location.reload(); 
+      window.location.reload();
     } catch (err: any) {
       console.error("Upload error:", err);
       setUploading(false);
@@ -763,11 +683,6 @@ export default function SettingsPage() {
               <NotificationSection />
             </div>
           </div>
-
-          <DangerZone
-            onDelete={handleDeleteAccount}
-            isDeleting={isDeleting}
-          />
         </div>
       </main>
 
@@ -856,7 +771,11 @@ export default function SettingsPage() {
               )}
 
               <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-3">
-                <Button variant="secondary" onClick={closeModal} fullWidthMobile>
+                <Button
+                  variant="secondary"
+                  onClick={closeModal}
+                  fullWidthMobile
+                >
                   Cancel
                 </Button>
                 <Button
