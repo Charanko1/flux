@@ -108,7 +108,7 @@ export default function FinancePage() {
     if (isLoading) {
       return (
         <div className="flex h-screen items-center justify-center bg-gray-50">
-          <p className="text-gray-500">Memuat data keuangan...</p>
+          <p className="text-gray-500">Loading financial data...</p>
         </div>
       );
     }
@@ -137,7 +137,7 @@ export default function FinancePage() {
           />
         );
       default:
-        return <div>Halaman tidak ditemukan</div>;
+        return <div>Page not found</div>;
     }
   };
 

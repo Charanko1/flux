@@ -8,6 +8,7 @@ import { FiCalendar, FiX } from "react-icons/fi";
 import { Loader2 } from "lucide-react";
 
 // --- IMPORT KOMPONEN ---
+// Pastikan path ini sesuai dengan struktur folder Anda
 import CalendarWidget from "@/components/CalendarWidget";
 import {
   ProjectCard,
@@ -57,7 +58,7 @@ const RightSidebar = memo(() => {
         setIsLoading(true);
         const response = await fetch("/api/dashboard/notes", {
           cache: "no-store",
-          credentials: "include", // penting agar cookie session terkirim
+          credentials: "include",
         });
         if (response.ok) {
           const data = await response.json();
@@ -136,18 +137,24 @@ const RightSidebar = memo(() => {
 RightSidebar.displayName = "RightSidebar";
 
 // ============================================================================
-// 2. KOMPONEN: MAIN CONTENT (Chart & Task Database)
+// 2. KOMPONEN: MAIN CONTENT (Chart & Task Database) - UPDATED WITH SKELETON
 // ============================================================================
 const MainContent = memo(() => {
   const [recentTasks, setRecentTasks] = useState<Task[]>([]);
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [mostUrgentTask, setMostUrgentTask] = useState<Task | null>(null);
+  
+  // State Data Summary
   const [summary, setSummary] = useState<DashboardSummary>({
     total: 0,
     assigned: 0,
     closed: 0,
     highPriority: 0,
   });
+
+  // State Loading Baru
+  const [isLoadingTasks, setIsLoadingTasks] = useState(true);
+  const [isLoadingFinance, setIsLoadingFinance] = useState(true);
 
   const [isChartReady, setIsChartReady] = useState(false);
 
@@ -161,10 +168,11 @@ const MainContent = memo(() => {
       // ---------------------------------------------------------
       // 1. FETCH TASKS
       // ---------------------------------------------------------
+      setIsLoadingTasks(true);
       try {
         const resTask = await fetch("/api/dashboard/task", {
           cache: "no-store",
-          credentials: "include", // kirim cookie session
+          credentials: "include",
         });
         if (resTask.ok) {
           const dbTasks = await resTask.json();
@@ -207,15 +215,18 @@ const MainContent = memo(() => {
         }
       } catch (error) {
         console.error("Error loading tasks:", error);
+      } finally {
+        setIsLoadingTasks(false);
       }
 
       // ---------------------------------------------------------
-      // 2. FETCH FINANCE (disamakan logikanya dengan halaman Finance)
+      // 2. FETCH FINANCE
       // ---------------------------------------------------------
+      setIsLoadingFinance(true);
       try {
         const resFinance = await fetch("/api/dashboard/finance", {
           cache: "no-store",
-          credentials: "include", // kirim cookie session
+          credentials: "include",
         });
         if (resFinance.ok) {
           const dbTransactions = await resFinance.json();
@@ -275,6 +286,8 @@ const MainContent = memo(() => {
         }
       } catch (error) {
         console.error("Error loading finance:", error);
+      } finally {
+        setIsLoadingFinance(false);
       }
     };
 
@@ -288,14 +301,36 @@ const MainContent = memo(() => {
       animate="visible"
       className="flex flex-col gap-3 lg:gap-6 min-h-0"
     >
+      {/* SECTION 1: RECENT TASKS */}
       <motion.section variants={itemVariants}>
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-base lg:text-lg font-semibold text-gray-800">
             Recent Tasks
           </h3>
         </div>
+        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-4">
-          {recentTasks.length > 0 ? (
+          {isLoadingTasks ? (
+            // SKELETON LOADING UNTUK TASKS
+            <>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm h-[140px] flex flex-col justify-between animate-pulse">
+                   <div className="flex justify-between items-start">
+                      <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                      <div className="h-6 w-16 bg-gray-200 rounded-full"></div>
+                   </div>
+                   <div className="space-y-2">
+                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                   </div>
+                   <div className="flex gap-2 mt-2">
+                      <div className="h-6 w-6 bg-gray-200 rounded-full"></div>
+                      <div className="h-6 w-6 bg-gray-200 rounded-full"></div>
+                   </div>
+                </div>
+              ))}
+            </>
+          ) : recentTasks.length > 0 ? (
             recentTasks.map((task) => (
               <ProjectCard
                 key={task.id}
@@ -313,10 +348,12 @@ const MainContent = memo(() => {
         </div>
       </motion.section>
 
+      {/* SECTION 2: CHART & SUMMARY */}
       <motion.div
         variants={itemVariants}
         className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-6"
       >
+        {/* CHART SECTION */}
         <section className="bg-white p-4 lg:p-6 rounded-2xl border border-gray-100 shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-base lg:text-lg font-semibold text-gray-800">
@@ -327,16 +364,33 @@ const MainContent = memo(() => {
             </span>
           </div>
           <div className="h-[200px] md:h-[220px] w-full">
-            {isChartReady ? (
-              <ActivityChart data={chartData} />
+            {isLoadingFinance || !isChartReady ? (
+               // SKELETON LOADING UNTUK CHART
+               <div className="w-full h-full flex items-end justify-between gap-2 px-2 animate-pulse">
+                  {[...Array(7)].map((_, i) => (
+                    <div key={i} className="w-full bg-gray-100 rounded-t-md" style={{ height: `${Math.random() * 60 + 30}%` }}></div>
+                  ))}
+               </div>
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gray-50 rounded-lg animate-pulse">
-                <Loader2 className="w-6 h-6 text-gray-300 animate-spin" />
-              </div>
+              <ActivityChart data={chartData} />
             )}
           </div>
         </section>
-        <SummaryCard summary={summary} mostUrgentTask={mostUrgentTask} />
+
+        {/* SUMMARY CARD SECTION */}
+        {isLoadingTasks ? (
+          // SKELETON LOADING UNTUK SUMMARY
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm animate-pulse flex flex-col gap-6">
+             <div className="h-5 bg-gray-200 rounded w-1/3 mb-4"></div>
+             <div className="grid grid-cols-2 gap-4">
+                <div className="h-24 bg-gray-100 rounded-xl"></div>
+                <div className="h-24 bg-gray-100 rounded-xl"></div>
+             </div>
+             <div className="h-16 bg-gray-100 rounded-xl mt-2"></div>
+          </div>
+        ) : (
+          <SummaryCard summary={summary} mostUrgentTask={mostUrgentTask} />
+        )}
       </motion.div>
     </motion.main>
   );
