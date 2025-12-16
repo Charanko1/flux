@@ -86,22 +86,23 @@ export default function EventModal({
     setIsSubmitting(false);
   };
 
-  // Class reusable untuk input agar konsisten dan tajam
+  // --- PERBAIKAN STYLING AGAR TAJAM ---
   const inputClassName = 
-    "w-full rounded-lg bg-white px-3 py-2.5 text-sm border border-gray-300 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-black focus:ring-1 focus:ring-black focus:outline-none transition-all";
+    "w-full rounded-lg bg-white px-3 py-2.5 text-sm font-medium text-black border border-gray-300 shadow-sm placeholder:text-gray-400 focus:border-black focus:ring-1 focus:ring-black focus:outline-none transition-all antialiased";
 
   const labelClassName = 
-    "block text-sm text-gray-800 mb-1.5 font-semibold tracking-wide";
+    "block text-sm text-black mb-1.5 font-bold tracking-wide antialiased";
+  // ------------------------------------
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 antialiased">
       {/* BACKDROP */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" // Blur background dikurangi sedikit agar mata fokus ke modal
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
       />
 
       {/* MODAL CONTAINER */}
@@ -111,7 +112,7 @@ export default function EventModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="bg-white rounded-xl w-full max-w-lg shadow-2xl relative z-10 overflow-hidden flex flex-col max-h-[90vh] border border-gray-100"
+        className="bg-white rounded-xl w-full max-w-lg shadow-2xl relative z-10 overflow-hidden flex flex-col max-h-[90vh] border border-gray-200"
       >
         {/* CONTENT WRAPPER */}
         <motion.div
@@ -121,12 +122,12 @@ export default function EventModal({
         >
           {/* Header */}
           <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
-            <h2 className="text-xl font-bold text-gray-900">
+            <h2 className="text-xl font-extrabold text-black tracking-tight">
               {event ? "Edit Event" : "Add New Event"}
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-900 p-2 rounded-full hover:bg-gray-100 transition-colors"
+              className="text-gray-500 hover:text-black p-2 rounded-full hover:bg-gray-100 transition-colors"
             >
               <X size={20} />
             </button>
@@ -238,7 +239,7 @@ export default function EventModal({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex-1 bg-black hover:bg-gray-800 text-white py-2.5 rounded-lg transition-all text-sm font-semibold shadow-md flex justify-center items-center gap-2 active:scale-[0.98]"
+                className="flex-1 bg-black hover:bg-gray-800 text-white py-2.5 rounded-lg transition-all text-sm font-bold shadow-md flex justify-center items-center gap-2 active:scale-[0.98]"
               >
                 {isSubmitting && (
                   <Loader2 className="animate-spin w-4 h-4" />
@@ -250,7 +251,7 @@ export default function EventModal({
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="flex-1 bg-white border border-gray-300 text-gray-700 py-2.5 rounded-lg hover:bg-gray-50 transition-all text-sm font-semibold shadow-sm active:scale-[0.98]"
+                className="flex-1 bg-white border border-gray-300 text-black py-2.5 rounded-lg hover:bg-gray-50 transition-all text-sm font-bold shadow-sm active:scale-[0.98]"
               >
                 Cancel
               </button>
@@ -261,7 +262,7 @@ export default function EventModal({
                 type="button"
                 onClick={() => onDelete(event.id)}
                 disabled={isSubmitting}
-                className="w-full py-2 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition font-medium"
+                className="w-full py-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition font-bold"
               >
                 Delete Event
               </button>
