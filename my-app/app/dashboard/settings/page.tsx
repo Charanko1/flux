@@ -278,7 +278,8 @@ const ProfileSection = ({
       icon={<UserIcon size={20} />}
       title="Profile"
       subtitle="Personal details"
-      className="col-span-1 lg:col-span-3"
+      // Classname grid dihapus disini karena akan dihandle parent wrapper untuk animasi
+      className="h-full" 
     >
       <div className="flex flex-col gap-6">
         <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-gray-100 border-dashed">
@@ -429,7 +430,7 @@ const SecuritySection = ({ handleUpdateApi }: { handleUpdateApi: any }) => {
       icon={<Lock size={20} />}
       title="Security"
       subtitle="Protection"
-      className="col-span-1 lg:col-span-2"
+      className="h-full"
     >
       <div className="flex flex-col gap-4">
         <div className="bg-blue-50/50 rounded-lg p-3 border border-blue-100 text-blue-800 text-sm mb-1">
@@ -508,7 +509,7 @@ const NotificationSection = () => {
       icon={<Bell size={20} />}
       title="Notifications"
       subtitle="Alerts"
-      className="col-span-1 lg:col-span-1 h-full"
+      className="h-full"
     >
       <div className="divide-y divide-gray-100 border rounded-xl border-gray-100 px-4">
         <Toggle
@@ -551,7 +552,7 @@ const NotificationSection = () => {
   );
 };
 
-/* --- 4. MAIN CONTENT --- */
+/* --- 4. MAIN CONTENT (DENGAN ANIMASI) --- */
 
 export default function SettingsPage() {
   const { user, updateUser: updateContextUser, loading } = useAuth();
@@ -652,7 +653,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-500 font-medium">
+      <div className="min-h-screen flex items-center justify-center text-gray-500 font-medium animate-pulse">
         Loading settings...
       </div>
     );
@@ -660,8 +661,32 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans pb-10 sm:pb-20">
+      {/* Inject Style Animasi Langsung Disini 
+        Mendefinisikan keyframe fadeUpEnter dan class animate-enter
+      */}
+      <style jsx global>{`
+        @keyframes fadeUpEnter {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-enter {
+          opacity: 0; /* Mulai invisible */
+          animation: fadeUpEnter 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
-        <div className="mb-8 text-center sm:text-left">
+        {/* Header - Muncul langsung (delay 0ms) */}
+        <div 
+          className="mb-8 text-center sm:text-left animate-enter" 
+          style={{ animationDelay: "0ms" }}
+        >
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
             Account Settings
           </h1>
@@ -671,16 +696,38 @@ export default function SettingsPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 items-start">
-          <ProfileSection
-            user={safeUser}
-            handleUpdateApi={handleUpdateApi}
-            openModal={openModal}
-          />
+          {/* Section 1: Profile (Wrapper mengambil jatah 3 kolom) - Delay 100ms */}
+          <div 
+            className="col-span-1 lg:col-span-3 animate-enter" 
+            style={{ animationDelay: "100ms" }}
+          >
+            <ProfileSection
+              user={safeUser}
+              handleUpdateApi={handleUpdateApi}
+              openModal={openModal}
+            />
+          </div>
 
+          {/* Wrapper Section 2 & 3 */}
           <div className="contents lg:block lg:col-span-3 space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <SecuritySection handleUpdateApi={handleUpdateApi} />
-              <NotificationSection />
+              
+              {/* Section 2: Security (2 kolom) - Delay 200ms */}
+              <div 
+                className="col-span-1 lg:col-span-2 animate-enter" 
+                style={{ animationDelay: "200ms" }}
+              >
+                <SecuritySection handleUpdateApi={handleUpdateApi} />
+              </div>
+              
+              {/* Section 3: Notification (1 kolom) - Delay 300ms */}
+              <div 
+                className="col-span-1 lg:col-span-1 h-full animate-enter" 
+                style={{ animationDelay: "300ms" }}
+              >
+                <NotificationSection />
+              </div>
+
             </div>
           </div>
         </div>
@@ -690,11 +737,14 @@ export default function SettingsPage() {
       {isOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm transition-opacity animate-enter duration-300"
             onClick={closeModal}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-2xl transition-all">
+            <div 
+              className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-2xl transition-all animate-enter"
+              style={{ animationDuration: "0.4s" }}
+            >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-gray-900">
                   Update Photo
@@ -722,7 +772,7 @@ export default function SettingsPage() {
                 onClick={() => fileInputRef.current?.click()}
               >
                 {preview ? (
-                  <div className="relative h-32 w-32">
+                  <div className="relative h-32 w-32 animate-enter">
                     <img
                       src={preview}
                       className="h-full w-full rounded-full object-cover border-4 border-white shadow-xl"
@@ -765,7 +815,7 @@ export default function SettingsPage() {
               </div>
 
               {fileError && (
-                <div className="mt-4 p-2 bg-red-50 text-red-600 rounded-lg text-sm text-center font-medium border border-red-100">
+                <div className="mt-4 p-2 bg-red-50 text-red-600 rounded-lg text-sm text-center font-medium border border-red-100 animate-enter">
                   {fileError}
                 </div>
               )}
