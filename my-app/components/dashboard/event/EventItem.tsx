@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { motion } from "framer-motion";
 import { CalendarDays, MapPin, Clock, Users } from "lucide-react";
@@ -38,7 +40,9 @@ const EventItem = ({ event, onEdit }: EventItemProps) => {
   return (
     <motion.div
       layoutId={`event-card-${event.id}`}
-      className="p-3 sm:p-4 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group"
+      // Physics disamakan dengan Modal agar smooth bolak-balik
+      transition={{ type: "spring", stiffness: 350, damping: 35 }}
+      className="p-3 sm:p-4 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
       onClick={() => onEdit(event)}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}

@@ -11,17 +11,23 @@ import ActivityItem from "@/components/dashboard/event/ActivityItem";
 import EventHeader from "@/components/dashboard/event/EventHeader";
 import EventControls from "@/components/dashboard/event/EventControls";
 import MobileCalendarModal from "@/components/dashboard/event/MobileCalendarModal";
-import { IconCalendarInternal } from "@/components/dashboard/event/EventIcons";
 import { EventData, ActivityLog } from "@/lib/types";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.1 } }
+  visible: { 
+    opacity: 1, 
+    transition: { staggerChildren: 0.1, delayChildren: 0.1 } 
+  }
 };
 
 const itemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 50, damping: 15 } }
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { type: "spring", stiffness: 50, damping: 15 } 
+  }
 };
 
 export default function EventPage() {
@@ -35,7 +41,7 @@ export default function EventPage() {
   const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null);
   const [isMobileCalendarOpen, setIsMobileCalendarOpen] = useState(false);
   
-  // PENTING: layoutId state
+  // State untuk animasi layout (Shared Element)
   const [layoutId, setLayoutId] = useState<string | null>(null);
   
   const [isLoaded, setIsLoaded] = useState(false);
@@ -63,7 +69,6 @@ export default function EventPage() {
     fetchEvents();
   }, []);
 
-  // ... (Helper getEventStatus, filteredEvents, addActivity SAMA SEPERTI SEBELUMNYA) ...
   const getEventStatus = (dateStr: string) => {
     const eventDate = new Date(dateStr).toISOString().split('T')[0];
     const today = new Date().toISOString().split('T')[0];
@@ -91,7 +96,6 @@ export default function EventPage() {
     setActivities(prev => [newLog, ...prev].slice(0, 5));
   };
 
-  // ... (handleSaveEvent & handleDeleteEvent SAMA SEPERTI SEBELUMNYA) ...
   const handleSaveEvent = async (eventData: any) => {
     try {
       if (selectedEvent) {
@@ -135,23 +139,21 @@ export default function EventPage() {
     } catch (error) { console.error(error); }
   };
 
-  // --- HANDLER MODAL (PENTING) ---
+  // --- HANDLER MODAL ---
   const openModalForCreate = (sourceId: string) => {
-    setLayoutId(sourceId); // Set ID untuk animasi start
+    setLayoutId(sourceId); 
     setSelectedEvent(null);
     setIsModalOpen(true);
   };
 
   const openModalForEdit = (event: EventData) => {
-    setLayoutId(`event-card-${event.id}`); // Set ID unik kartu
+    setLayoutId(`event-card-${event.id}`); 
     setSelectedEvent(event);
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
-    // Kita TIDAK meng-null-kan layoutId di sini agar animasi exit tau harus pulang ke mana
-    // setSelectedEvent(null); // Bisa di-delay atau biarkan, modal handle reset via useEffect
   };
 
   return (
@@ -174,7 +176,6 @@ export default function EventPage() {
                       key={event.id} 
                       event={event} 
                       onEdit={openModalForEdit} 
-                      // EventItem akan otomatis pakai ID ini untuk layoutId
                     />
                   )) : <div className="text-center py-8 text-sm text-gray-500">No events found.</div>}
               </div>
@@ -199,7 +200,7 @@ export default function EventPage() {
             onSave={handleSaveEvent}
             onClose={closeModal}
             onDelete={handleDeleteEvent}
-            layoutId={layoutId} // Kirim ID ke modal
+            layoutId={layoutId} 
           />
         )}
       </AnimatePresence>

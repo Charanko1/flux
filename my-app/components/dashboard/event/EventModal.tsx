@@ -86,39 +86,43 @@ export default function EventModal({
     setIsSubmitting(false);
   };
 
-  // --- PERBAIKAN STYLING AGAR TAJAM ---
-  const inputClassName = 
+  const inputClassName =
     "w-full rounded-lg bg-white px-3 py-2.5 text-sm font-medium text-black border border-gray-300 shadow-sm placeholder:text-gray-400 focus:border-black focus:ring-1 focus:ring-black focus:outline-none transition-all antialiased";
 
-  const labelClassName = 
+  const labelClassName =
     "block text-sm text-black mb-1.5 font-bold tracking-wide antialiased";
-  // ------------------------------------
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 antialiased">
-      {/* BACKDROP */}
+      {/* BACKDROP - Fade In/Out Sederhana */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }}
         onClick={onClose}
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm will-change-opacity"
       />
 
-      {/* MODAL CONTAINER */}
+      {/* MODAL CONTAINER - Menggunakan LayoutId untuk Morphing */}
       <motion.div
         layoutId={layoutId || "new-event-card"}
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="bg-white rounded-xl w-full max-w-lg shadow-2xl relative z-10 overflow-hidden flex flex-col max-h-[90vh] border border-gray-200"
+        // Transisi yang lebih smooth (Apple-like physics)
+        transition={{
+          type: "spring",
+          stiffness: 350, // Sedikit lebih kencang
+          damping: 35,    // Meredam pantulan agar smooth
+          mass: 1
+        }}
       >
-        {/* CONTENT WRAPPER */}
+        {/* CONTENT WRAPPER - Fade In dengan Delay agar tidak "Melar" */}
         <motion.div
-          className="p-6 overflow-y-auto hide-scrollbar h-full"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1, transition: { delay: 0.1 } }}
+          className="p-6 overflow-y-auto hide-scrollbar h-full bg-white"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 10 }} // Saat tutup konten hilang duluan
+          transition={{ duration: 0.3, delay: 0.15 }} // Delay sedikit biar box membesar dulu
         >
           {/* Header */}
           <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
@@ -136,9 +140,7 @@ export default function EventModal({
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className={labelClassName}>
-                Event Title
-              </label>
+              <label className={labelClassName}>Event Title</label>
               <input
                 type="text"
                 name="title"
@@ -151,9 +153,7 @@ export default function EventModal({
             </div>
 
             <div>
-              <label className={labelClassName}>
-                Date
-              </label>
+              <label className={labelClassName}>Date</label>
               <input
                 type="date"
                 name="date"
@@ -166,9 +166,7 @@ export default function EventModal({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={labelClassName}>
-                  Start Time
-                </label>
+                <label className={labelClassName}>Start Time</label>
                 <input
                   type="time"
                   name="startTime"
@@ -179,9 +177,7 @@ export default function EventModal({
                 />
               </div>
               <div>
-                <label className={labelClassName}>
-                  End Time
-                </label>
+                <label className={labelClassName}>End Time</label>
                 <input
                   type="time"
                   name="endTime"
@@ -194,9 +190,7 @@ export default function EventModal({
             </div>
 
             <div>
-              <label className={labelClassName}>
-                Location
-              </label>
+              <label className={labelClassName}>Location</label>
               <input
                 type="text"
                 name="location"
@@ -208,9 +202,7 @@ export default function EventModal({
             </div>
 
             <div>
-              <label className={labelClassName}>
-                Attendees
-              </label>
+              <label className={labelClassName}>Attendees</label>
               <input
                 type="number"
                 name="attendees"
@@ -223,7 +215,10 @@ export default function EventModal({
 
             <div>
               <label className={labelClassName}>
-                Tags <span className="text-gray-400 font-normal text-xs">(comma separated)</span>
+                Tags{" "}
+                <span className="text-gray-400 font-normal text-xs">
+                  (comma separated)
+                </span>
               </label>
               <input
                 type="text"
@@ -241,9 +236,7 @@ export default function EventModal({
                 disabled={isSubmitting}
                 className="flex-1 bg-black hover:bg-gray-800 text-white py-2.5 rounded-lg transition-all text-sm font-bold shadow-md flex justify-center items-center gap-2 active:scale-[0.98]"
               >
-                {isSubmitting && (
-                  <Loader2 className="animate-spin w-4 h-4" />
-                )}
+                {isSubmitting && <Loader2 className="animate-spin w-4 h-4" />}
                 {event ? "Save Changes" : "Add Event"}
               </button>
 
