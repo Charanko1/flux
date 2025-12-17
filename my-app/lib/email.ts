@@ -1,25 +1,24 @@
-// File: lib/email.ts
 import nodemailer from 'nodemailer';
 
-// Konfigurasi Transporter (Ganti dengan SMTP kamu)
+// Konfigurasi Transporter
 const transporter = nodemailer.createTransport({
-  service: 'gmail', // atau host: 'smtp.mailtrap.io', dsb
+  service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER, // Masukkan di .env
-    pass: process.env.EMAIL_PASS, // Masukkan di .env
+    user: process.env.EMAIL_USER, // Pastikan ada di .env
+    pass: process.env.EMAIL_PASS, // Pastikan App Password ada di .env
   },
 });
 
 export const sendEmail = async (to: string, subject: string, html: string) => {
   try {
     await transporter.sendMail({
-      from: '"Task Manager" <no-reply@taskmanager.com>',
+      from: '"Flux Notification" <no-reply@fluxapp.com>', // Ubah nama pengirim sesuai app
       to,
       subject,
       html,
     });
-    console.log(`Email sent to ${to}`);
+    console.log(`✅ Email sent to ${to}`);
   } catch (error) {
-    console.error("Failed to send email:", error);
+    console.error("❌ Failed to send email:", error);
   }
 };
